@@ -125,10 +125,51 @@ function useDebounce<T>(value: T, delay: number): T {
   return debouncedValue;
 }
 
+// Colonnes suffisantes pour les actions de la ligne (édition, lien de
+// paiement, remboursement) sans refetch au clic
+const BOOKING_SEARCH_SELECT =
+  "id, booking_id, booking_date, booking_time, hotel_id, hotel_name, client_first_name, client_last_name, client_email, phone, status, payment_status, payment_method, total_price, duration, guest_count, client_type, client_note, room_number, room_id, secondary_room_id, therapist_id, therapist_name, assigned_at, client_signature, signed_at, stripe_invoice_url, hotels(name, currency), treatment_rooms!bookings_trunk_id_fkey(name), booking_treatments(price_override, treatment_menus(name, price), treatment_variants(label, price))";
+
 type BookingAction = "edit" | "payment" | "refund";
 
-export function GlobalSearch() {
-  const [open, setOpen] = useState(false);
+export interface GlobalSearchPick {
+  id: string;
+  booking_id?: number | null;
+  booking_date?: string | null;
+  hotel_id?: string | null;
+  client_type?: string | null;
+  client_first_name?: string | null;
+  client_last_name?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+}
+
+export interface GlobalSearchProps {
+  /**
+   * Mode sélecteur : la palette est pilotée de l'extérieur et une ligne choisie
+   * est renvoyée à l'appelant au lieu d'ouvrir la fiche. Permet de réutiliser la
+   * recherche globale là où un combobox serait trop à l'étroit (panneau latéral
+   * d'une tâche, par exemple) sans réimplémenter une seconde recherche.
+   */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  onPickBooking?: (booking: GlobalSearchPick) => void;
+  onPickCustomer?: (customer: GlobalSearchPick) => void;
+}
+
+export function GlobalSearch({
+  open: controlledOpen,
+  onOpenChange,
+  onPickBooking,
+  onPickCustomer,
+}: GlobalSearchProps = {}) {
+  const isPicker = controlledOpen !== undefined;
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const open = isPicker ? controlledOpen : uncontrolledOpen;
+  const setOpen = (next: boolean) => {
+    if (isPicker) onOpenChange?.(next);
+    else setUncontrolledOpen(next);
+  };
   const [search, setSearch] = useState("");
   // Action déclenchée depuis une ligne de résultat : la recherche se ferme et
   // le dialog correspondant s'ouvre par-dessus
@@ -144,15 +185,16 @@ export function GlobalSearch() {
 
   // Raccourci clavier Cmd+K ou Ctrl+K
   useEffect(() => {
+    if (isPicker) return;
     const down = (e: KeyboardEvent) => {
       if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
-        setOpen((open) => !open);
+        setUncontrolledOpen((previous) => !previous);
       }
     };
     document.addEventListener("keydown", down);
     return () => document.removeEventListener("keydown", down);
-  }, []);
+  }, [isPicker]);
 
   // Réinitialise la recherche à la fermeture
   useEffect(() => {
@@ -183,7 +225,7 @@ export function GlobalSearch() {
         ? `,booking_id.eq.${debouncedSearch}`
         : "";
 
-      const [custRes, therRes, bookRes] = await Promise.all([
+      const [custRes, therRes, bookRes, promoRes] = await Promise.all([
         supabase
           .from("customers")
           .select("*")
@@ -196,18 +238,45 @@ export function GlobalSearch() {
           .limit(5),
         supabase
           .from("bookings")
-          // Colonnes suffisantes pour les actions de la ligne (édition, lien de
-          // paiement, remboursement) sans refetch au clic
-          .select("id, booking_id, booking_date, booking_time, hotel_id, hotel_name, client_first_name, client_last_name, client_email, phone, status, payment_status, payment_method, total_price, duration, guest_count, client_type, client_note, room_number, room_id, secondary_room_id, therapist_id, therapist_name, assigned_at, client_signature, signed_at, stripe_invoice_url, hotels(name, currency), treatment_rooms!bookings_trunk_id_fkey(name), booking_treatments(price_override, treatment_menus(name, price), treatment_variants(label, price))")
+          .select(BOOKING_SEARCH_SELECT)
           .or(`client_first_name.ilike.${searchTerm},client_last_name.ilike.${searchTerm},client_email.ilike.${searchTerm}${phoneMatch}${bookingIdMatch}`)
           .order("booking_date", { ascending: false })
           .limit(10),
+        // Le code promo vit dans promo_codes : on résout d'abord les codes qui
+        // correspondent à la saisie, puis les réservations qui les portent.
+        supabase
+          .from("promo_codes")
+          .select("id")
+          .ilike("code", searchTerm)
+          .limit(10),
       ]);
+
+      const promoIds = (promoRes.data ?? []).map((promo) => promo.id);
+      const promoBookings = promoIds.length
+        ? (
+            await supabase
+              .from("bookings")
+              .select(BOOKING_SEARCH_SELECT)
+              .in("promo_code_id", promoIds)
+              .order("booking_date", { ascending: false })
+              .limit(10)
+          ).data ?? []
+        : [];
+
+      // Une réservation peut remonter des deux côtés (client ET code promo) :
+      // on déduplique sur l'id avant d'afficher.
+      const bookingsById = new Map<string, (typeof promoBookings)[number]>();
+      for (const booking of [...(bookRes.data ?? []), ...promoBookings]) {
+        bookingsById.set(booking.id, booking);
+      }
 
       return {
         customers: custRes.data || [],
         therapists: therRes.data || [],
-        bookings: bookRes.data || [],
+        // Tri global : les deux requêtes sont triées séparément, pas leur union.
+        bookings: [...bookingsById.values()].sort((a, b) =>
+          (b.booking_date ?? "").localeCompare(a.booking_date ?? ""),
+        ),
       };
     },
   });
@@ -230,7 +299,20 @@ export function GlobalSearch() {
     requestAnimationFrame(() => requestAnimationFrame(fn));
   };
 
-  const openBooking = (id: string) => {
+  const openBooking = (id: string, booking?: Partial<GlobalSearchPick>) => {
+    if (onPickBooking) {
+      onPickBooking({
+        id,
+        booking_id: booking?.booking_id ?? null,
+        booking_date: booking?.booking_date ?? null,
+        hotel_id: booking?.hotel_id ?? null,
+        client_type: booking?.client_type ?? null,
+        client_first_name: booking?.client_first_name ?? null,
+        client_last_name: booking?.client_last_name ?? null,
+      });
+      setOpen(false);
+      return;
+    }
     setPending(`${id}:view`);
     runAfterPaint(() => {
       setPending(null);
@@ -289,6 +371,7 @@ export function GlobalSearch() {
 
   return (
     <>
+      {!isPicker && (
       <div className="px-3 mb-2 group-data-[collapsible=icon]:px-0">
         <button
           onClick={() => setOpen(true)}
@@ -304,6 +387,7 @@ export function GlobalSearch() {
           </kbd>
         </button>
       </div>
+      )}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="app-refonte gs-dialog max-w-xl">
@@ -357,7 +441,7 @@ export function GlobalSearch() {
                           key={booking.id}
                           // FIX 3: Valeur explicite pour que la modale retrouve ses petits
                           value={`${booking.client_first_name} ${booking.client_last_name} ${booking.booking_id} ${booking.phone || ''} ${booking.client_email || ''}`}
-                          onSelect={() => openBooking(booking.id)}
+                          onSelect={() => openBooking(booking.id, booking)}
                           className="gs-item gs-book"
                         >
                           <div className="gs-when">
@@ -420,7 +504,18 @@ export function GlobalSearch() {
                           key={c.id}
                           // FIX 3
                           value={`${c.first_name} ${c.last_name} ${c.email || ''} ${c.phone || ''}`}
-                          onSelect={() => onSelect(`/admin/customers/${c.id}`)}
+                          onSelect={() => {
+                            if (onPickCustomer) {
+                              onPickCustomer({
+                                id: c.id,
+                                first_name: c.first_name,
+                                last_name: c.last_name,
+                              });
+                              setOpen(false);
+                              return;
+                            }
+                            onSelect(`/admin/customers/${c.id}`);
+                          }}
                           className="gs-item"
                         >
                           <div className="gs-ic cust">

@@ -4,8 +4,8 @@
 //   1. Verify the caller is an admin/concierge (JWT lookup).
 //   2. Load the root inquiry (must be direction='inbound').
 //   3. Send the email via the shared Resend helper, threading via In-Reply-To.
-//   4. Insert a new email_inquiries row as the outbound reply (direction='outbound',
-//      parent_inquiry_id = root.id, status='sent').
+//   4. Insert a new channel_messages row as the outbound reply (direction='outbound',
+//      parent_message_id = root.id, status='sent').
 //   5. Mark the root as status='replied' + last_reply_at=now().
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
@@ -20,12 +20,12 @@ const corsHeaders = {
 interface InquiryRow {
   id: string;
   hotel_id: string | null;
-  from_address: string;
-  to_address: string;
+  from_identifier: string;
+  to_identifier: string;
   subject: string | null;
-  message_id: string | null;
+  external_message_id: string | null;
   direction: string;
-  parent_inquiry_id: string | null;
+  parent_message_id: string | null;
 }
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -119,14 +119,14 @@ serve(async (req) => {
 
     // 3. Load root inquiry
     const { data: inquiryData, error: inquiryErr } = await supabaseClient
-      .from("email_inquiries")
-      .select("id, hotel_id, from_address, to_address, subject, message_id, direction, parent_inquiry_id")
+      .from("channel_messages")
+      .select("id, hotel_id, from_identifier, to_identifier, subject, external_message_id, direction, parent_message_id")
       .eq("id", inquiryId)
       .maybeSingle();
     if (inquiryErr) return jsonResponse({ error: `Inquiry lookup failed: ${inquiryErr.message}` }, 500);
     const inquiry = inquiryData as InquiryRow | null;
     if (!inquiry) return jsonResponse({ error: "Inquiry not found" }, 404);
-    if (inquiry.direction !== "inbound" || inquiry.parent_inquiry_id !== null) {
+    if (inquiry.direction !== "inbound" || inquiry.parent_message_id !== null) {
       return jsonResponse({ error: "Can only reply to a root inbound inquiry" }, 400);
     }
 
@@ -134,15 +134,15 @@ serve(async (req) => {
     const finalSubject = reSubject(inquiry.subject, subjectOverride);
     const html = bodyToHtml(replyBody);
     const headers: Record<string, string> = {};
-    if (inquiry.message_id) {
-      headers["In-Reply-To"] = inquiry.message_id;
-      headers["References"] = inquiry.message_id;
+    if (inquiry.external_message_id) {
+      headers["In-Reply-To"] = inquiry.external_message_id;
+      headers["References"] = inquiry.external_message_id;
     }
 
-    const recipient = recipientOverride ?? inquiry.from_address;
+    const recipient = recipientOverride ?? inquiry.from_identifier;
 
     const sendResult = await sendEmail({
-      from: inquiry.to_address,
+      from: inquiry.to_identifier,
       to: recipient,
       subject: finalSubject,
       html,
@@ -155,18 +155,18 @@ serve(async (req) => {
 
     // 5. Persist outbound row
     const { data: outbound, error: insertErr } = await supabaseClient
-      .from("email_inquiries")
+      .from("channel_messages")
       .insert({
         hotel_id: inquiry.hotel_id,
-        parent_inquiry_id: inquiry.id,
+        parent_message_id: inquiry.id,
         direction: "outbound",
-        from_address: inquiry.to_address,
-        to_address: recipient,
+        from_identifier: inquiry.to_identifier,
+        to_identifier: recipient,
         subject: finalSubject,
         raw_body_text: replyBody,
         raw_body_html: html,
         status: "sent",
-        message_id: sendResult.id,
+        external_message_id: sendResult.id,
         sent_by: userId,
       })
       .select("id, created_at")
@@ -186,7 +186,7 @@ serve(async (req) => {
 
     // 7. Mark root as replied
     const { error: updateErr } = await supabaseClient
-      .from("email_inquiries")
+      .from("channel_messages")
       .update({ status: "replied", last_reply_at: new Date().toISOString() })
       .eq("id", inquiry.id);
 

@@ -4,6 +4,7 @@ import { getStripeForVenue } from "../../_shared/stripe-resolver.ts";
 import type { ActionContext } from "../index.ts";
 import { tryMarkCheckoutIntentConverted } from "../../_shared/checkoutIntent.ts";
 import { normalizeClientType } from "../../_shared/client-type.ts";
+import { roundToCents } from "../../_shared/promo.ts";
 import {
   computeSlotDuration,
   fetchAddonTreatmentIds,
@@ -229,6 +230,48 @@ async function refundChargeAfterFailure(
   }
 }
 
+/**
+ * Consume the promo code recorded in the Checkout metadata.
+ *
+ * The amount comes from the metadata our own server wrote, not from a fresh
+ * computation: Stripe has already charged the discounted total, so the booking
+ * must record that discount even if a concurrent booking exhausted the code in
+ * between. A failed redemption is therefore logged, never fatal — the booking
+ * is still stamped so the data matches what was actually charged.
+ */
+async function redeemPromoFromMetadata(
+  // deno-lint-ignore no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  meta: Record<string, string>,
+  bookingId: string,
+  customerId: string | null,
+): Promise<number> {
+  const discountCents = meta.promoDiscountCents ? parseInt(meta.promoDiscountCents, 10) : 0;
+  const promoCodeId = meta.promoCodeId || null;
+  if (!promoCodeId || discountCents <= 0) return 0;
+
+  const { data: redeemed, error } = await supabase.rpc("redeem_promo_code", {
+    _promo_code_id: promoCodeId,
+    _booking_id: bookingId,
+    _hotel_id: meta.hotelId,
+    _customer_id: customerId,
+    _discount_cents: discountCents,
+  });
+
+  if (error || !redeemed?.applied) {
+    console.error(
+      "[CONFIRM-SETUP] redeem_promo_code failed (non-blocking):",
+      error?.message || redeemed?.reason,
+    );
+    await supabase
+      .from("bookings")
+      .update({ promo_code_id: promoCodeId, promo_discount_cents: discountCents })
+      .eq("id", bookingId);
+  }
+  return discountCents;
+}
+
 async function triggerBookingNotifications(
   supabase: ActionContext["supabase"],
   bookingIds: string[],
@@ -420,6 +463,8 @@ export async function handleConfirmSetupIntent(
       const slotQuantities = JSON.parse(meta.quantities_per_slot || "[]") as number[];
       const slotGuestCounts = JSON.parse(meta.guest_counts_per_slot || "[]") as number[];
       const multiGroupId = meta.groupId || crypto.randomUUID();
+      const multiPromoDiscountEuros =
+        (meta.promoDiscountCents ? parseInt(meta.promoDiscountCents, 10) : 0) / 100;
 
       const { data: venueData } = await supabase
         .from("hotels")
@@ -468,7 +513,11 @@ export async function handleConfirmSetupIntent(
           _room_number: meta.roomNumber || null,
           _status: "pending",
           _therapist_gender: meta.therapistGender || null,
-          _total_price: slotSurcharge.totalWithSurcharge,
+          // Groupe multi-créneaux : la remise a été appliquée une seule fois au
+        // total encaissé, elle est donc portée par le premier créneau.
+        _total_price: i === 0
+          ? roundToCents(Math.max(0, slotSurcharge.totalWithSurcharge - multiPromoDiscountEuros))
+          : slotSurcharge.totalWithSurcharge,
           _treatment_ids: [slotTreatmentIds[i]].filter(Boolean),
           // Formules Semaine / Week-end : la variante porte ses propres jours autorisés.
           _variant_ids: slotVariantId ? [slotVariantId] : [],
@@ -587,6 +636,11 @@ export async function handleConfirmSetupIntent(
       });
     }
 
+    // A promo code is consumed once for the whole group, carried by the first
+    // booking — the discount was applied once to the Checkout total, not once
+    // per slot.
+    await redeemPromoFromMetadata(supabase, meta, multiBookingIds[0], customerId);
+
     await triggerBookingNotifications(supabase, multiBookingIds);
 
     await tryMarkCheckoutIntentConverted(supabase, meta.checkoutIntentId, multiBookingIds[0], "[CONFIRM-SETUP]");
@@ -691,7 +745,13 @@ export async function handleConfirmSetupIntent(
     basePrice,
     hotel || {},
   );
-  const verifiedPrice = surcharge.totalWithSurcharge;
+  // Le code promo baisse le prix de vente : total_price porte donc le montant
+  // réellement dû, celui qui alimente le CA, les factures et la note de chambre.
+  // promo_discount_cents garde la trace de la remise (brut = total + remise).
+  const promoDiscountEuros = (meta.promoDiscountCents ? parseInt(meta.promoDiscountCents, 10) : 0) / 100;
+  const verifiedPrice = roundToCents(
+    Math.max(0, surcharge.totalWithSurcharge - promoDiscountEuros),
+  );
 
   const customerId = await resolveCustomer(
     supabase,
@@ -831,6 +891,10 @@ export async function handleConfirmSetupIntent(
       }
     }
   }
+
+  // La remise est déjà déduite de verifiedPrice ci-dessus ; il reste à la
+  // journaliser et à incrémenter le compteur du code.
+  await redeemPromoFromMetadata(supabase, meta, bookingId, customerId);
 
   // Apply gift card deduction if present in metadata
   const giftAmountCents = meta.giftAmountCents ? parseInt(meta.giftAmountCents, 10) : 0;

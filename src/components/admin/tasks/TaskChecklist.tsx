@@ -4,6 +4,7 @@ import type { TaskChecklistItem } from "@shared/db";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 
 interface TaskChecklistProps {
   value: TaskChecklistItem[];
@@ -31,9 +32,9 @@ export function TaskChecklist({ value, onChange }: TaskChecklistProps) {
   };
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-0.5">
       {value.map((item) => (
-        <div key={item.id} className="flex items-center gap-2">
+        <div key={item.id} className="group flex items-center gap-2">
           <Checkbox
             checked={item.done}
             onCheckedChange={(checked) => updateItem(item.id, { done: checked === true })}
@@ -50,13 +51,19 @@ export function TaskChecklist({ value, onChange }: TaskChecklistProps) {
               }
             }}
             placeholder={t("tasks.fields.checklistItemPlaceholder")}
-            className={item.done ? "text-muted-foreground line-through" : undefined}
+            // Une case à cocher se lit comme une liste, pas comme un formulaire :
+            // le cadre n'apparaît qu'au survol ou à la saisie.
+            className={cn(
+              "h-8 border-transparent bg-transparent px-2 shadow-none",
+              "hover:border-input focus-visible:border-input",
+              item.done && "text-muted-foreground line-through",
+            )}
           />
           <Button
             type="button"
             variant="ghost"
             size="icon"
-            className="h-8 w-8 shrink-0"
+            className="h-8 w-8 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
             onClick={() => removeItem(item.id)}
             aria-label={t("common.delete")}
           >
@@ -64,7 +71,13 @@ export function TaskChecklist({ value, onChange }: TaskChecklistProps) {
           </Button>
         </div>
       ))}
-      <Button type="button" variant="outline" size="sm" className="h-8" onClick={addItem}>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="text-muted-foreground h-7 px-2"
+        onClick={addItem}
+      >
         <Plus className="mr-1.5 h-3.5 w-3.5" />
         {t("tasks.fields.addChecklistItem")}
       </Button>

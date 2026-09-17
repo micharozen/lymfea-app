@@ -98,7 +98,8 @@
     "create": "Créer",
     "logoutError": "Impossible de se déconnecter",
     "logoutSuccess": "Déconnexion réussie",
-    "logoutFarewell": "À bientôt !"
+    "logoutFarewell": "À bientôt !",
+    "promoCodes": "Codes promo"
   },
   "dashboard": {
     "title": "Accueil",
@@ -570,7 +571,8 @@
     "actions": "Actions",
     "confirmDelete": "Êtes-vous sûr de vouloir supprimer ?",
     "yes": "Oui",
-    "no": "Non"
+    "no": "Non",
+    "close": "Fermer"
   },
   "venue": {
     "completeness": {
@@ -1129,7 +1131,34 @@
       "addAttachment": "Ajouter une image",
       "attachmentHint": "Vous pouvez aussi coller une capture (Cmd/Ctrl+V).",
       "attachmentImageOnly": "Le fichier doit être une image",
-      "attachmentTooLarge": "L'image ne doit pas dépasser {{size}} Mo"
+      "attachmentTooLarge": "L'image ne doit pas dépasser {{size}} Mo",
+      "channel": "Canal",
+      "noChannel": "Non précisé",
+      "feedbackType": "Type de retour attendu",
+      "noFeedbackType": "Non précisé",
+      "clientType": "Type de client",
+      "noClientType": "Non précisé",
+      "treatmentDate": "Date du soin",
+      "prospect": "Coordonnées du prospect",
+      "prospectHint": "À renseigner quand le client n'a pas encore de fiche. La fiche sera créée lors de la conversion en réservation.",
+      "prospectFirstName": "Prénom",
+      "prospectLastName": "Nom",
+      "prospectEmail": "E-mail",
+      "prospectPhone": "Téléphone",
+      "analyze": "Analyser",
+      "bookingRequiredHint": "La réservation renseigne automatiquement le lieu, les soins, les thérapeutes et le client.",
+      "clearValue": "— Effacer —",
+      "noAssignee": "Non assigné",
+      "noDueDate": "Pas d'échéance",
+      "noDescription": "Ajouter une description…",
+      "noTreatmentDate": "Pas de date de soin",
+      "context": "Contexte",
+      "details": "Détails",
+      "edit": "Modifier",
+      "backToRead": "Terminer",
+      "descriptionOrPastePlaceholder": "Décrivez la tâche, ou collez ici la demande reçue puis cliquez sur Analyser",
+      "linkBooking": "Lier une réservation",
+      "linkCustomer": "Lier un client"
     },
     "dueDatePresets": {
       "today": "Aujourd'hui",
@@ -1146,13 +1175,79 @@
       "gift_followup": "Relance offert",
       "loyalty": "Fidélisation / cure",
       "bug": "Bug",
-      "other": "Autre"
+      "other": "Autre",
+      "inbound_request": "Demande entrante"
     },
     "customerTab": {
       "label": "Tâches",
       "count_one": "{{count}} tâche liée à ce client",
       "count_other": "{{count}} tâches liées à ce client",
       "empty": "Aucune tâche liée à ce client."
+    },
+    "channel": {
+      "website": "Site web",
+      "email": "E-mail",
+      "phone": "Téléphone",
+      "whatsapp": "WhatsApp",
+      "instagram": "Instagram",
+      "walk_in": "Sur place",
+      "partner": "Partenaire",
+      "other": "Autre"
+    },
+    "feedbackType": {
+      "validation_received": "Validation reçue",
+      "issue_reported": "Problème signalé",
+      "change_requested": "Modification demandée",
+      "awaiting_client": "En attente retour client",
+      "awaiting_partner": "En attente retour partenaire",
+      "need_more_info": "Besoin complément d'info",
+      "internal_feedback": "Feedback interne équipe",
+      "awaiting_payment": "Attente paiement"
+    },
+    "convertToBooking": "Convertir en réservation",
+    "alreadyConverted": "Voir la réservation",
+    "convertSuccess": "Réservation #{{number}} créée et tâche clôturée",
+    "convertLinkError": "Réservation #{{number}} créée, mais la tâche n'a pas pu être mise à jour",
+    "comments": {
+      "title": "Commentaires",
+      "empty": "Aucun commentaire pour l'instant.",
+      "placeholder": "Écrire un commentaire… tapez @ pour mentionner quelqu'un",
+      "replyPlaceholder": "Écrire une réponse…",
+      "hint": "@ pour mentionner · ⌘/Ctrl + Entrée pour envoyer",
+      "submit": "Commenter",
+      "reply": "Répondre",
+      "edit": "Modifier",
+      "save": "Enregistrer",
+      "cancel": "Annuler",
+      "delete": "Supprimer",
+      "edited": "modifié",
+      "unknownAuthor": "Utilisateur supprimé",
+      "count": "{{count}} commentaire",
+      "count_other": "{{count}} commentaires",
+      "deleteTitle": "Supprimer ce commentaire ?",
+      "deleteConfirm": "Cette action est irréversible.",
+      "deleteRootConfirm": "Les réponses à ce commentaire seront supprimées elles aussi. Cette action est irréversible.",
+      "addError": "Impossible d'ajouter le commentaire",
+      "updateError": "Impossible de modifier le commentaire",
+      "deleteError": "Impossible de supprimer le commentaire"
+    },
+    "messages": {
+      "title": "Conversation",
+      "confidence": "Confiance : {{value}}",
+      "analyzeSuccess": "Champs pré-remplis à partir du texte",
+      "analyzeFailed": "Impossible d'analyser ce texte",
+      "analyzeHint": "Les champs extraits sont proposés, pas imposés : vérifiez-les avant d'enregistrer.",
+      "dateFallback": "Analysé — {{rejected}} complet, créneau retenu le {{kept}}",
+      "dateNoneAvailable": "Analysé — aucune disponibilité aux dates proposées ({{rejected}})"
+    },
+    "addFilter": "Filtrer",
+    "removeFilter": "Retirer le filtre {{filter}}",
+    "filterAll": "Tous",
+    "groupByLabel": "Vue",
+    "groupBy": {
+      "status": "Vue par statut",
+      "priority": "Vue par priorité",
+      "task_type": "Vue par type"
     }
   },
   "scheduleAlerts": {
@@ -1476,6 +1571,7 @@
     "create": "Créer une carte cadeau",
     "print": "Impression",
     "selfPurchase": "Pour soi-même",
+    "searchSales": "Rechercher par acheteur, destinataire ou code...",
     "sessionsValue": "{{count}} séances",
     "tabs": {
       "templates": "Modèles",
@@ -1515,7 +1611,8 @@
     "empty": {
       "templates": "Aucune carte cadeau configurée",
       "templatesHint": "Cliquez sur Créer une carte cadeau pour démarrer.",
-      "sales": "Aucune carte cadeau vendue"
+      "sales": "Aucune carte cadeau vendue",
+      "salesSearch": "Aucune carte cadeau ne correspond"
     },
     "dialog": {
       "createTitle": "Nouvelle carte cadeau",
@@ -2167,7 +2264,8 @@
     "tabs": {
       "active": "Actifs",
       "archived": "Archivés"
-    }
+    },
+    "openTask": "Voir la tâche"
   },
   "checkoutIntents": {
     "title": "Paniers abandonnés",
@@ -2177,8 +2275,8 @@
     "noIntentsDescription": "Essayez de modifier vos filtres",
     "neverReminded": "Jamais",
     "itemName": "paniers",
-    "cartSummary": "{{count}} soin",
-    "cartSummary_plural": "{{count}} soins",
+    "cartSummary_one": "{{count}} soin",
+    "cartSummary_other": "{{count}} soins",
     "columns": {
       "client": "Contact",
       "email": "Email",
@@ -2204,11 +2302,11 @@
       "conversionRate": "Taux de conversion",
       "conversionHint": "{{converted}} réservations sur {{total}} paniers",
       "abandonedValue": "Valeur récupérable",
-      "abandonedValueHint": "réparti sur {{count}} panier abandonné",
-      "abandonedValueHint_plural": "réparti sur {{count}} paniers abandonnés",
+      "abandonedValueHint_one": "réparti sur {{count}} panier abandonné",
+      "abandonedValueHint_other": "réparti sur {{count}} paniers abandonnés",
       "reminded": "Relances envoyées",
-      "remindedHint": "{{count}} panier en attente de relance",
-      "remindedHint_plural": "{{count}} paniers en attente de relance"
+      "remindedHint_one": "{{count}} panier en attente de relance",
+      "remindedHint_other": "{{count}} paniers en attente de relance"
     },
     "actions": {
       "previewEmail": "Aperçu de la relance",
@@ -2223,8 +2321,8 @@
       "total": "Total",
       "onRequest": "Sur devis",
       "quantity": "×{{count}}",
-      "guests": "{{count}} personne",
-      "guests_plural": "{{count}} personnes"
+      "guests_one": "{{count}} personne",
+      "guests_other": "{{count}} personnes"
     }
   },
   "therapistTreatments": {
@@ -2440,7 +2538,9 @@
       "error": "Impossible de désactiver le lien de paiement."
     },
     "requestSignature": "Demander la signature",
-    "actions": "Actions"
+    "actions": "Actions",
+    "promoLine": "Code promo ({{code}})",
+    "promoLineNoCode": "Code promo"
   },
   "finance": {
     "closure": {
@@ -2900,6 +3000,79 @@
     "empty": "Aucune salle de soin trouvée",
     "emptyHint": "Essayez de modifier vos filtres",
     "addRoom": "Ajouter une salle"
+  },
+  "promoCodesPage": {
+    "title": "Codes promo",
+    "new": "Nouveau code",
+    "create": "Créer",
+    "addCode": "Créer un code promo",
+    "itemName": "codes promo",
+    "search": "Rechercher un code…",
+    "allStatuses": "Tous les statuts",
+    "active": "Actif",
+    "inactive": "Inactif",
+    "expired": "Expiré",
+    "exhausted": "Épuisé",
+    "allVenues": "Tous les lieux",
+    "allVenuesShort": "Tous les lieux",
+    "allOrgVenues": "Tous les lieux de mon organisation",
+    "allTreatments": "Tous les soins",
+    "nTreatments": "{{count}} soin",
+    "nTreatments_other": "{{count}} soins",
+    "alwaysValid": "Sans limite de date",
+    "colCode": "Code",
+    "colDiscountType": "Remise",
+    "colTreatments": "Soins",
+    "colVenue": "Lieu",
+    "colValidity": "Validité",
+    "colRedemptions": "Usages",
+    "colTotalDiscount": "Total remisé",
+    "empty": "Aucun code promo",
+    "emptyHint": "Aucun code ne correspond à votre recherche.",
+    "createTitle": "Nouveau code promo",
+    "editTitle": "Modifier le code promo",
+    "dialogSubtitle": "La remise s'applique aux soins réservés depuis le site de réservation client.",
+    "fieldCode": "Code",
+    "fieldCodeHint": "Saisi par le client. Les tirets et espaces sont ignorés.",
+    "fieldType": "Type de remise",
+    "typePercentage": "Pourcentage",
+    "typeFixed": "Montant fixe",
+    "fieldValuePercent": "Pourcentage (%)",
+    "fieldValueAmount": "Montant (€)",
+    "fieldVenue": "Lieu",
+    "fieldTreatments": "Soins éligibles",
+    "fieldTreatmentsHint": "Laisser vide pour appliquer la remise à tout le panier.",
+    "fieldValidFrom": "Valable à partir du",
+    "fieldValidUntil": "Valable jusqu'au",
+    "fieldMaxRedemptions": "Nombre d'utilisations maximum",
+    "fieldMaxRedemptionsHint": "Laisser vide pour un usage illimité.",
+    "unlimited": "Illimité",
+    "fieldActive": "Code actif",
+    "fieldActiveHint": "Un code inactif est refusé à la saisie.",
+    "created": "Code promo créé",
+    "updated": "Code promo mis à jour",
+    "deleted": "Code promo supprimé",
+    "deleteError": "La suppression a échoué",
+    "confirmDeleteTitle": "Supprimer ce code promo ?",
+    "confirmDeleteDesc": "Le code ne pourra plus être utilisé. L'historique des réservations qui en ont bénéficié est conservé.",
+    "errorCodeTooShort": "Le code doit faire au moins 3 caractères.",
+    "errorValuePositive": "La remise doit être supérieure à 0.",
+    "errorPercentMax": "Un pourcentage ne peut pas dépasser 100.",
+    "errorDateOrder": "La date de fin doit suivre la date de début.",
+    "errorDuplicateCode": "Ce code existe déjà dans votre organisation.",
+    "errorNoOrganization": "Choisissez un lieu : il détermine l'organisation du code.",
+    "redemptionsTitle": "Utilisations du code {{code}}",
+    "redemptionsSubtitle": "Réservations ayant bénéficié de cette remise.",
+    "colBooking": "Réservation",
+    "colClient": "Client",
+    "colDate": "Date",
+    "colDiscount": "Remise",
+    "noRedemption": "Ce code n'a pas encore été utilisé",
+    "pickVenue": "Choisir un lieu…",
+    "pickVenueHint": "En vue « toutes les organisations », le lieu détermine l'organisation du code.",
+    "fieldMaxPerCustomer": "Utilisations maximum par client",
+    "fieldMaxPerCustomerHint": "Laisser vide pour ne pas limiter. Le client est reconnu à son téléphone ou son email.",
+    "perCustomer": "{{count}}/client"
   },
   "organizationDetail": {
     "notFound": "Organisation introuvable",
@@ -4255,6 +4428,9 @@
     "allTherapists": "Tous les thérapeutes",
     "searchTherapist": "Rechercher un thérapeute...",
     "noTherapistFound": "Aucun thérapeute trouvé.",
+    "allTreatments": "Toutes les prestations",
+    "searchTreatment": "Rechercher une prestation...",
+    "noTreatmentFound": "Aucune prestation trouvée.",
     "lastDays": "{{count}} derniers jours",
     "customPeriod": "Période personnalisée",
     "selectPeriod": "Sélectionnez une période",
@@ -4268,6 +4444,7 @@
       "hotel": "Lieu",
       "status": "Statut",
       "therapist": "Thérapeute",
+      "treatment": "Prestation",
       "period": "Période",
       "payment": "Mode de paiement",
       "paymentStatus": "Statut du paiement"

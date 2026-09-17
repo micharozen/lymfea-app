@@ -117,6 +117,8 @@ const getPaymentDesignStatus = (
       return { kind: 'due', label: t('dashboard.paymentPending') };
     case 'failed':
       return { kind: 'warn', label: t('dashboard.paymentFailed') };
+    case 'offert':
+      return { kind: 'ok', label: t('dashboard.paymentOffert') };
     default:
       return null;
   }

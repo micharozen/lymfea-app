@@ -8,6 +8,9 @@ import "./index.css";
 import "./i18n";
 
 const Landing = lazy(() => import("./pages/Landing"));
+const Plans = lazy(() => import("./pages/Plans"));
+const Customers = lazy(() => import("./pages/Customers"));
+const CustomerStory = lazy(() => import("./pages/CustomerStory"));
 const Compare = lazy(() => import("./pages/Compare"));
 const CompareDetail = lazy(() => import("./pages/CompareDetail"));
 const Terms = lazy(() => import("./pages/Terms"));
@@ -33,6 +36,9 @@ createRoot(document.getElementById("root")!).render(
         <Suspense fallback={<LandingLoader />}>
           <Routes>
             <Route path="/" element={<Landing />} />
+            <Route path="/tarifs" element={<Plans />} />
+            <Route path="/clients" element={<Customers />} />
+            <Route path="/clients/:slug" element={<CustomerStory />} />
             <Route path="/compare" element={<Compare />} />
             <Route path="/compare/:slug" element={<CompareDetail />} />
             <Route path="/terms" element={<Terms />} />

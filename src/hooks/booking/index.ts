@@ -4,6 +4,7 @@ export type { BookingWithTreatments, Treatment, Hotel, Therapist } from "./useBo
 export { useBooking } from "./useBooking";
 export { useCalendarHotels } from "./useCalendarHotels";
 export { useActiveTherapists } from "./useActiveTherapists";
+export { useTreatmentNames } from "./useTreatmentNames";
 
 export { useBookingsList, BOOKINGS_PAGE_SIZE } from "./useBookingsList";
 

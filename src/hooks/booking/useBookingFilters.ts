@@ -13,6 +13,8 @@ export interface BookingFilterValues {
   therapist: string[];
   paymentMethod: string[];
   paymentStatus: string[];
+  /** Noms de prestations ; une réservation correspond si l'une de ses lignes porte ce nom. */
+  treatment: string[];
 }
 
 function readStored(storageKey: string | undefined, field: string): string[] {
@@ -72,8 +74,19 @@ export function matchesBookingFilters(
       ? filters.paymentMethod.includes(PAYMENT_METHOD_UNSET)
       : filters.paymentMethod.includes(booking.payment_method));
 
+  // Le libellé affiché peut porter un suffixe de variante (« · 60 min ») : on
+  // compare donc sur le début du nom, qui est celui du menu.
+  const matchesTreatment =
+    filters.treatment.length === 0 ||
+    booking.treatments.some((treatment) =>
+      filters.treatment.some(
+        (name) => treatment.name === name || treatment.name.startsWith(`${name} · `),
+      ),
+    );
+
   return (
     matchesSearch &&
+    matchesTreatment &&
     matchesAny(filters.status, booking.status) &&
     matchesAny(filters.hotel, booking.hotel_id) &&
     matchesAny(filters.therapist, booking.therapist_id) &&
@@ -100,6 +113,9 @@ export function useBookingFilters(
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<string[]>(() =>
     readStored(storageKey, "paymentStatus")
   );
+  const [treatmentFilter, setTreatmentFilter] = useState<string[]>(() =>
+    readStored(storageKey, "treatment")
+  );
 
   useEffect(() => {
     if (!storageKey) return;
@@ -124,6 +140,11 @@ export function useBookingFilters(
     [storageKey, paymentStatusFilter]
   );
 
+  useEffect(
+    () => writeStored(storageKey, "treatment", treatmentFilter),
+    [storageKey, treatmentFilter]
+  );
+
   const filteredBookings = useMemo(() => {
     const filters: BookingFilterValues = {
       searchQuery,
@@ -132,6 +153,7 @@ export function useBookingFilters(
       therapist: therapistFilter,
       paymentMethod: paymentMethodFilter,
       paymentStatus: paymentStatusFilter,
+      treatment: treatmentFilter,
     };
     return bookings?.filter((booking) => matchesBookingFilters(booking, filters));
   }, [
@@ -142,6 +164,7 @@ export function useBookingFilters(
     therapistFilter,
     paymentMethodFilter,
     paymentStatusFilter,
+    treatmentFilter,
   ]);
 
   const resetFilters = () => {
@@ -151,6 +174,7 @@ export function useBookingFilters(
     setTherapistFilter([]);
     setPaymentMethodFilter([]);
     setPaymentStatusFilter([]);
+    setTreatmentFilter([]);
   };
 
   return {
@@ -166,6 +190,8 @@ export function useBookingFilters(
     setPaymentMethodFilter,
     paymentStatusFilter,
     setPaymentStatusFilter,
+    treatmentFilter,
+    setTreatmentFilter,
     filteredBookings,
     resetFilters,
   };

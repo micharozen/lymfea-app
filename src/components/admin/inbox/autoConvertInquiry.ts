@@ -1,4 +1,4 @@
-import type { EmailInquiry } from "@/hooks/inbox/useEmailInquiries";
+import type { ChannelMessage } from "@/hooks/inbox/useChannelMessages";
 import type { BookingModalInitialValues } from "@/components/booking/BookingModal";
 
 export interface AutoConvertHotel {
@@ -24,7 +24,7 @@ export interface AutoConvertVariant {
   guest_count: number | null;
 }
 
-export function canAutoConvert(inquiry: EmailInquiry): boolean {
+export function canAutoConvert(inquiry: ChannelMessage): boolean {
   const p = inquiry.parsed_data;
   if (!inquiry.hotel_id || !p) return false;
   return Boolean(
@@ -55,7 +55,7 @@ function stripHtml(html: string): string {
     .trim();
 }
 
-export function bodyAsClientNote(inquiry: EmailInquiry): string {
+export function bodyAsClientNote(inquiry: ChannelMessage): string {
   if (inquiry.raw_body_text?.trim()) return inquiry.raw_body_text.trim();
   if (inquiry.raw_body_html) return stripHtml(inquiry.raw_body_html);
   return inquiry.parsed_data?.notes ?? "";
@@ -72,7 +72,7 @@ export function isOutOfHours(time: string, hotel: AutoConvertHotel | null): bool
 }
 
 // Build the BookingModal initialValues for the "review and convert" path.
-export function buildInitialValues(inquiry: EmailInquiry): BookingModalInitialValues {
+export function buildInitialValues(inquiry: ChannelMessage): BookingModalInitialValues {
   const p = inquiry.parsed_data ?? {};
   const { countryCode, phone } = splitPhone(p.phone);
   const date = p.requested_date ? new Date(p.requested_date) : undefined;
@@ -82,7 +82,7 @@ export function buildInitialValues(inquiry: EmailInquiry): BookingModalInitialVa
     variantId: p.variant_match?.id ?? undefined,
     clientFirstName: p.client_first_name ?? undefined,
     clientLastName: p.client_last_name ?? undefined,
-    clientEmail: p.email ?? inquiry.from_address ?? undefined,
+    clientEmail: p.email ?? inquiry.from_identifier ?? undefined,
     phone,
     countryCode,
     date: date && !Number.isNaN(date.getTime()) ? date : undefined,

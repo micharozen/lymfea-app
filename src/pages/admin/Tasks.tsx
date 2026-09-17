@@ -20,8 +20,17 @@ import { useTasks, type Task } from "@/hooks/tasks/useTasks";
 import { useOrgAdmins } from "@/hooks/tasks/useOrgAdmins";
 import { useTaskMutations } from "@/hooks/tasks/useTaskMutations";
 import { TaskBoard } from "@/components/admin/tasks/TaskBoard";
+import { TaskFilterBar, type TaskFilterDef } from "@/components/admin/tasks/TaskFilterBar";
+import { GROUP_BY_CONFIG, type TaskGroupBy } from "@/components/admin/tasks/taskDnd";
+import { SelectField, type SelectFieldOption } from "@/components/ui/select-field";
 import { TaskDialog } from "@/components/admin/tasks/TaskDialog";
-import { PRIORITY_ORDER, TASK_TYPE_ORDER } from "@/components/admin/tasks/taskConstants";
+import {
+  PRIORITY_ORDER,
+  TASK_CHANNEL_META,
+  TASK_CHANNEL_ORDER,
+  TASK_FEEDBACK_TYPE_ORDER,
+  TASK_TYPE_ORDER,
+} from "@/components/admin/tasks/taskConstants";
 
 export default function Tasks() {
   const { t } = useTranslation("admin");
@@ -38,10 +47,18 @@ export default function Tasks() {
   });
 
   const [search, setSearch] = useState("");
-  const [priorityFilter, setPriorityFilter] = useState<string>("all");
-  const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
-  const [venueFilter, setVenueFilter] = useState<string>("all");
-  const [typeFilter, setTypeFilter] = useState<string>("all");
+  // Les filtres vivent dans un seul objet : la barre les ajoute et les retire
+  // à la demande, plutôt que d'aligner six sélecteurs en permanence.
+  const [filterValues, setFilterValues] = useState<Record<string, string>>({});
+  const [visibleFilters, setVisibleFilters] = useState<string[]>([]);
+  // Dimension du board : statut par défaut, mais on peut aussi lire le travail
+  // par priorité ou par type de demande.
+  const [groupBy, setGroupBy] = useState<TaskGroupBy>("status");
+
+  const setFilterValue = (key: string, value: string) =>
+    setFilterValues((prev) => ({ ...prev, [key]: value }));
+
+  const valueOf = (key: string) => filterValues[key] ?? "all";
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
 
@@ -60,17 +77,100 @@ export default function Tasks() {
   const filteredTasks = useMemo(() => {
     const q = search.trim().toLowerCase();
     return tasks.filter((task) => {
-      if (priorityFilter !== "all" && task.priority !== priorityFilter) return false;
-      if (assigneeFilter !== "all" && task.assigned_to_user_id !== assigneeFilter) return false;
-      if (venueFilter !== "all" && task.hotel_id !== venueFilter) return false;
-      if (typeFilter !== "all" && task.task_type !== typeFilter) return false;
+      const matches = (key: string, actual: string | null) => {
+        const expected = filterValues[key] ?? "all";
+        return expected === "all" || actual === expected;
+      };
+      if (!matches("priority", task.priority)) return false;
+      if (!matches("assignee", task.assigned_to_user_id)) return false;
+      if (!matches("venue", task.hotel_id)) return false;
+      if (!matches("type", task.task_type)) return false;
+      if (!matches("channel", task.channel)) return false;
+      if (!matches("feedback", task.feedback_type)) return false;
       if (q) {
-        const haystack = `${task.title} ${task.description ?? ""}`.toLowerCase();
+        // Le prospect fait partie de la recherche : sur une demande entrante,
+        // c'est souvent le seul nom disponible (aucune fiche client encore).
+        const haystack = [
+          task.title,
+          task.description ?? "",
+          task.prospect_first_name ?? "",
+          task.prospect_last_name ?? "",
+          task.prospect_email ?? "",
+          task.prospect_phone ?? "",
+        ]
+          .join(" ")
+          .toLowerCase();
         if (!haystack.includes(q)) return false;
       }
       return true;
     });
-  }, [tasks, search, priorityFilter, assigneeFilter, venueFilter, typeFilter]);
+  }, [tasks, search, filterValues]);
+
+  const filterDefs: TaskFilterDef[] = useMemo(() => {
+    // Le nom du filtre est affiché juste avant la valeur : « Canal · Tous les
+    // canaux » serait redondant, un simple « Tous » suffit.
+    const withAll = (options: SelectFieldOption[]): SelectFieldOption[] => [
+      { value: "all", label: t("tasks.filterAll") },
+      ...options,
+    ];
+    return [
+      {
+        key: "priority",
+        label: t("tasks.fields.priority"),
+        options: withAll(
+          PRIORITY_ORDER.map((p) => ({ value: p, label: t(`tasks.priority.${p}`) })),
+        ),
+      },
+      {
+        key: "assignee",
+        label: t("tasks.fields.assignee"),
+        options: withAll(
+          admins.map((a) => ({
+            value: a.user_id,
+            label: `${a.first_name} ${a.last_name}`.trim(),
+          })),
+        ),
+      },
+      {
+        key: "venue",
+        label: t("tasks.fields.venue"),
+        options: withAll(
+          hotels.map((hotel) => ({ value: hotel.id, label: hotel.name })),
+        ),
+      },
+      {
+        key: "type",
+        label: t("tasks.fields.taskType"),
+        options: withAll(
+          TASK_TYPE_ORDER.map((type) => ({ value: type, label: t(`tasks.type.${type}`) })),
+        ),
+      },
+      {
+        key: "channel",
+        label: t("tasks.fields.channel"),
+        options: withAll(
+          TASK_CHANNEL_ORDER.map((channel) => {
+            const Icon = TASK_CHANNEL_META[channel].icon;
+            return {
+              value: channel,
+              label: t(`tasks.channel.${channel}`),
+              icon: <Icon className="h-4 w-4" />,
+            };
+          }),
+        ),
+      },
+      {
+        key: "feedback",
+        label: t("tasks.fields.feedbackType"),
+        options: withAll(
+          TASK_FEEDBACK_TYPE_ORDER.map((value) => ({
+            value,
+            label: t(`tasks.feedbackType.${value}`),
+          })),
+        ),
+      },
+    ];
+  }, [t, admins, hotels]);
 
   // Deep-link from a notification: ?task=<id> opens that task once loaded.
   useEffect(() => {
@@ -122,58 +222,24 @@ export default function Tasks() {
               className="pl-9"
             />
           </div>
-          <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-            <SelectTrigger className="w-[160px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t("tasks.allPriorities")}</SelectItem>
-              {PRIORITY_ORDER.map((p) => (
-                <SelectItem key={p} value={p}>
-                  {t(`tasks.priority.${p}`)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t("tasks.allAssignees")}</SelectItem>
-              {admins.map((a) => (
-                <SelectItem key={a.user_id} value={a.user_id}>
-                  {a.first_name} {a.last_name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={venueFilter} onValueChange={setVenueFilter}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t("tasks.allVenues")}</SelectItem>
-              {hotels.map((hotel) => (
-                <SelectItem key={hotel.id} value={hotel.id}>
-                  {hotel.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={typeFilter} onValueChange={setTypeFilter}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t("tasks.allTypes")}</SelectItem>
-              {TASK_TYPE_ORDER.map((type) => (
-                <SelectItem key={type} value={type}>
-                  {t(`tasks.type.${type}`)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <SelectField
+            options={(Object.keys(GROUP_BY_CONFIG) as TaskGroupBy[]).map((value) => ({
+              value,
+              label: t(`tasks.groupBy.${value}`),
+            }))}
+            value={groupBy}
+            onChange={(value) => setGroupBy(value as TaskGroupBy)}
+            searchable={false}
+            aria-label={t("tasks.groupByLabel")}
+            className="h-9 w-[190px]"
+          />
+          <TaskFilterBar
+            filters={filterDefs}
+            values={filterValues}
+            onChange={setFilterValue}
+            visibleKeys={visibleFilters}
+            onVisibleKeysChange={setVisibleFilters}
+          />
         </div>
       </div>
 
@@ -183,6 +249,7 @@ export default function Tasks() {
         ) : (
           <TaskBoard
             tasks={filteredTasks}
+            groupBy={groupBy}
             assigneeOf={assigneeOf}
             onOpenTask={openTask}
             onMove={move.mutate}

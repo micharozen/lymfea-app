@@ -1,0 +1,86 @@
+{
+  "date": "2026-09-14",
+  "slug": "planning-plus-rapide-et-cloisonnement-des-clients",
+  "title": {
+    "fr": "Planning plus rapide, fiches clients cloisonnées et lien de paiement révocable",
+    "en": "Faster schedule, partitioned client records and revocable payment links"
+  },
+  "summary": {
+    "fr": "Le planning et le tableau de bord se chargent nettement plus vite, en particulier pour les comptes gestionnaires de lieu qui voyaient la page expirer. Les fiches clients sont désormais cloisonnées par organisation. Un lien de paiement envoyé par erreur peut être désactivé, et les clients reçoivent un e-mail lorsque leur réservation est déplacée.",
+    "en": "The schedule and dashboard now load noticeably faster, especially for venue manager accounts that used to see the page time out. Client records are now partitioned by organisation. A payment link sent by mistake can be revoked, and guests get an email when their booking is moved."
+  },
+  "items": [
+    {
+      "type": "improved",
+      "audience": "admin",
+      "title": {
+        "fr": "Le planning et le tableau de bord se chargent nettement plus vite",
+        "en": "The schedule and dashboard load noticeably faster"
+      },
+      "body": {
+        "fr": "Sur les comptes gestionnaires de lieu, le planning pouvait mettre très longtemps à s'afficher, jusqu'à expirer complètement sur les lieux chargés. La façon dont les droits d'accès étaient vérifiés a été revue : le contrôle reste le même, mais il n'est plus refait pour chaque ligne affichée. Le tableau de bord en bénéficie aussi.",
+        "en": "On venue manager accounts, the schedule could take a very long time to appear, sometimes timing out entirely on busy venues. The way access rights are checked has been reworked: the same checks apply, but they are no longer repeated for every row displayed. The dashboard benefits from this too."
+      }
+    },
+    {
+      "type": "improved",
+      "audience": "admin",
+      "title": {
+        "fr": "Les fiches clients sont cloisonnées par organisation",
+        "en": "Client records are partitioned by organisation"
+      },
+      "body": {
+        "fr": "Chaque fiche client appartient désormais explicitement à une organisation. Une organisation ne voit, ne cherche et ne modifie que ses propres clients, y compris lorsque plusieurs lieux partagent la même plateforme.",
+        "en": "Every client record now explicitly belongs to an organisation. An organisation only sees, searches and edits its own clients, including when several venues share the same platform."
+      }
+    },
+    {
+      "type": "new",
+      "audience": "admin",
+      "title": {
+        "fr": "Désactiver un lien de paiement déjà envoyé",
+        "en": "Revoke a payment link that has already been sent"
+      },
+      "body": {
+        "fr": "Un lien de paiement envoyé par erreur, ou devenu caduc, peut être désactivé depuis la réservation : le client qui l'ouvre voit alors que le lien n'est plus valable. Émettre un nouveau lien pour la même réservation le réactive automatiquement.",
+        "en": "A payment link sent by mistake, or no longer valid, can be revoked from the booking: a guest who opens it is told the link is no longer active. Issuing a new link for the same booking reactivates it automatically."
+      }
+    },
+    {
+      "type": "new",
+      "audience": "client",
+      "title": {
+        "fr": "Un e-mail quand la réservation est déplacée, avec l'ancien créneau barré",
+        "en": "An email when a booking is moved, with the previous slot struck through"
+      },
+      "body": {
+        "fr": "Lorsqu'une réservation change de date, d'heure ou de soin, le client reçoit un e-mail reprenant la mise en page de la confirmation, avec l'ancien créneau barré au-dessus du nouveau. Le changement se lit d'un coup d'œil, sans avoir à comparer deux messages.",
+        "en": "When a booking changes date, time or treatment, the guest receives an email using the same layout as the confirmation, with the previous slot struck through above the new one. The change reads at a glance, with no need to compare two messages."
+      }
+    },
+    {
+      "type": "improved",
+      "audience": "client",
+      "title": {
+        "fr": "Les informations d'accès du lieu figurent dans l'e-mail de confirmation",
+        "en": "Venue access details are included in the confirmation email"
+      },
+      "body": {
+        "fr": "Les indications d'accès renseignées sur le lieu (entrée, étage, code, consignes) sont reprises dans l'e-mail de confirmation. Elles ne partent qu'une fois la réservation confirmée, jamais sur une demande encore en attente.",
+        "en": "The access details set on the venue (entrance, floor, door code, instructions) are included in the confirmation email. They are only sent once the booking is confirmed, never for a request still pending."
+      }
+    },
+    {
+      "type": "improved",
+      "audience": "therapist",
+      "title": {
+        "fr": "Le suivi des notifications indique si elles sont réellement arrivées",
+        "en": "Notification tracking now shows whether they actually arrived"
+      },
+      "body": {
+        "fr": "Jusqu'ici une notification était marquée comme envoyée dès sa transmission. Le statut réel de délivrance est maintenant enregistré, ce qui permet de distinguer une notification effectivement reçue d'une notification perdue en route, par exemple lorsqu'un thérapeute a désinstallé l'application.",
+        "en": "Until now a notification was marked as sent as soon as it was handed off. The actual delivery status is now recorded, which distinguishes a notification that truly arrived from one lost along the way, for example when a therapist has uninstalled the app."
+      }
+    }
+  ]
+}

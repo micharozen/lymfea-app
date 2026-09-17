@@ -1,25 +1,75 @@
 {
   "nav": {
-    "features": "Fonctionnalités",
-    "howItWorks": "Comment ça marche",
+    "howItWorks": "Déploiement",
     "pricing": "Tarifs",
     "faq": "FAQ",
     "contact": "Contact",
     "login": "Se connecter",
-    "cta": "Réserver une démo"
+    "cta": "Réserver une démo",
+    "product": {
+      "label": "Produit",
+      "groups": {
+        "run": "Gestion",
+        "fill": "Remplissage"
+      },
+      "items": {
+        "agenda": {
+          "title": "Agenda unifié",
+          "desc": "Multi-salles, multi-thérapeutes, multi-lieux"
+        },
+        "therapistApp": {
+          "title": "Application thérapeute",
+          "desc": "iOS et Android, planning et encaissement"
+        },
+        "rooms": {
+          "title": "Salles de soin",
+          "desc": "Capacité, duo et temps de remise en état"
+        },
+        "bookingLink": {
+          "title": "Lien de réservation",
+          "desc": "À la marque du lieu, QR code en chambre"
+        },
+        "agent": {
+          "title": "Agent sur les demandes",
+          "desc": "L'email devient une réservation"
+        },
+        "cart": {
+          "title": "Paniers abandonnés",
+          "desc": "Relance automatique avant le créneau"
+        }
+      },
+      "highlight": {
+        "title": "Ce que les autres logiciels de spa ne font pas",
+        "desc": "Lien à votre marque, agent sur les demandes entrantes, relance des paniers.",
+        "cta": "Voir les trois"
+      }
+    },
+    "customers": "Clients",
+    "resources": {
+      "label": "Ressources",
+      "items": {
+        "apiDocs": {
+          "title": "Documentation API",
+          "desc": "Références, authentification et webhooks"
+        },
+        "changelog": {
+          "title": "Journal des versions",
+          "desc": "Ce qui a été livré, version par version"
+        },
+        "faq": {
+          "title": "Questions fréquentes",
+          "desc": "PMS, déploiement, données, facturation"
+        }
+      }
+    }
   },
   "hero": {
-    "eyebrow": "Plateforme spa pour hôtels",
-    "title": "La gestion moderne de votre spa d'hôtel",
+    "title": "Logiciel de spa pour hôtels,",
     "titleHighlight": "enfin simple",
-    "subtitle": "Agenda unifié, paiement room charge, app thérapeute, booking client sans friction. Une seule plateforme pour réenchanter l'expérience spa de votre établissement.",
+    "subtitle": "Agenda, room charge, app thérapeute et réservation en ligne dans un seul outil, relié à votre PMS.",
     "ctaPrimary": "Réserver une démo",
-    "ctaSecondary": "Découvrir la plateforme",
-    "stats": {
-      "booking": "Réservation client fluide",
-      "pms": "Intégration PMS",
-      "customization": "Page de réservation 100 % personnalisable"
-    }
+    "ctaSecondary": "Voir le produit",
+    "agendaAlt": "Planning Saoma : la semaine d'un spa d'hôtel, soins par salle et par thérapeute"
   },
   "trustedBy": {
     "tagline": "Ils orchestrent leur spa avec Saoma",
@@ -54,11 +104,16 @@
         "name": "Cap d'Antibes Beach Hotel",
         "kind": "Relais & Châteaux",
         "area": "Antibes"
+      },
+      "sohoHouse": {
+        "name": "Soho House",
+        "kind": "Members' club",
+        "area": "Paris 9ᵉ"
       }
     }
   },
   "problem": {
-    "title": "Votre spa mérite mieux que des outils éparpillés.",
+    "title": "Gérer un spa d'hôtel mérite mieux que des outils éparpillés.",
     "subtitle": "Relances à la main, peu de visibilité sur vos réservations : vos équipes perdent du temps et vous laissez passer des clients.",
     "points": {
       "fragmented": {
@@ -76,12 +131,12 @@
     }
   },
   "features": {
-    "title": "Tout, réuni sur une seule",
-    "titleHighlight": "plateforme",
+    "title": "Agenda, salles de soin et thérapeutes",
+    "titleHighlight": "sur une seule plateforme",
     "subtitle": "Conçu avec des directeurs de spa en hôtels 4 et 5 étoiles.",
     "items": {
       "visibility": {
-        "title": "Visibilité totale",
+        "title": "Agenda unifié, multi-salles et multi-thérapeutes",
         "bullets": {
           "agenda": "Agenda partagé entre thérapeutes et gestion du lieu",
           "payments": "Suivi des paiements reçus ou en attente",
@@ -89,7 +144,7 @@
         }
       },
       "therapist": {
-        "title": "App mobile thérapeute",
+        "title": "Application mobile pour thérapeutes",
         "bullets": {
           "notifications": "Notifications en temps réel",
           "availability": "Déclaration des disponibilités",
@@ -98,7 +153,7 @@
         }
       },
       "booking": {
-        "title": "Expérience de réservation",
+        "title": "Réservation en ligne sans création de compte",
         "bullets": {
           "frictionless": "Réservation sans friction, sans création de compte",
           "response": "Prise en charge de la demande sous 2 h",
@@ -115,7 +170,7 @@
         }
       },
       "reporting": {
-        "title": "Dashboard & reporting",
+        "title": "Tableau de bord et reporting",
         "bullets": {
           "dashboard": "Tableau de bord CA, taux d'occupation et prévisionnel de remplissage à 7 jours",
           "reports": "Rapports journaliers, clôture de caisse et factures mensuelles générés seuls"
@@ -123,58 +178,74 @@
       }
     }
   },
-  "aiSpotlight": {
-    "eyebrow": "Au-delà du standard",
-    "title": "Vos demandes par email deviennent des réservations",
-    "subtitle": "Là où les autres plateformes vous laissent ressaisir à la main, l'agent IA de Saoma lit, vérifie les disponibilités et planifie. Automatiquement.",
-    "badge": "Agent IA Saoma",
-    "email": {
-      "label": "Email entrant",
-      "fromLabel": "De :",
-      "fromValue": "sophie.martin@example.com",
-      "subjectLabel": "Objet :",
-      "subjectValue": "Réservation massage dimanche",
-      "body": "Bonjour, je souhaiterais réserver un massage californien de 60 minutes dimanche vers 14h30 pour deux personnes. Est-ce possible ? Merci !"
+  "differentiators": {
+    "title": "Les standards de l'e-commerce,",
+    "titleHighlight": "appliqués au spa",
+    "subtitle": "Des mécaniques éprouvées en e-commerce, adaptées aux contraintes d'un spa.",
+    "link": {
+      "title": "Un lien de réservation à l'image du lieu",
+      "desc": "Typographie, photos, couleurs des boutons, jusqu'aux emails envoyés : tout se règle pour garder l'esprit de la maison. Vos clients n'atterrissent plus sur une page générique aux couleurs d'un logiciel.",
+      "cta": "Réserver",
+      "treatments": {
+        "signature": {
+          "name": "Massage signature · 60 min",
+          "price": "120 €"
+        },
+        "duo": {
+          "name": "Rituel duo · 90 min",
+          "price": "260 €"
+        },
+        "facial": {
+          "name": "Soin visage éclat · 50 min",
+          "price": "95 €"
+        }
+      }
     },
     "agent": {
-      "label": "Agent IA Saoma",
-      "status": "En cours d'analyse",
-      "step1": "Lecture & compréhension du mail",
-      "step2": "Extraction du soin, créneau, client",
-      "step3": "Vérification des disponibilités"
+      "title": "Les demandes par email entrent seules dans l'agenda",
+      "desc": "L'agent lit la demande, vérifie les cabines et les thérapeutes, crée la réservation et renvoie le récapitulatif avec le lien de paiement.",
+      "alt": "Espace admin Saoma : une demande reçue par email, avec le soin, le créneau, le client et le niveau de confiance extraits automatiquement."
     },
-    "booking": {
-      "label": "Réservation créée",
-      "status": "En attente",
-      "title": "Massage californien · 60 min",
-      "client": "Sophie Martin · 2 personnes",
-      "slot": "Dimanche 14h30"
+    "cart": {
+      "title": "Les paniers laissés en route sont relancés",
+      "desc": "Une heure après l'abandon, le client reçoit son panier prêt à reprendre. Une seule relance de plus, si le créneau approche.",
+      "alt": "Espace admin Saoma : suivi des paniers abandonnés, avec le taux de conversion, la valeur récupérable et les relances envoyées."
     }
   },
   "howItWorks": {
-    "eyebrow": "Comment ça marche",
-    "title": "De la signature à vos premières réservations en 2 semaines",
-    "subtitle": "Un onboarding accompagné, sans friction pour vos équipes.",
-    "step1": {
-      "number": "01",
-      "title": "Connectez votre PMS",
-      "desc": "Notre équipe configure l'intégration Opera Cloud ou Mews. Vos données chambres et invités sont synchronisées."
+    "title": "Vos réservations en ligne en quinze jours",
+    "steps": {
+      "scoping": {
+        "when": "Jour 1",
+        "title": "Appel de cadrage"
+      },
+      "migration": {
+        "when": "Semaine 1",
+        "title": "Reprise de vos données"
+      },
+      "training": {
+        "when": "Semaine 2",
+        "title": "Formation des équipes"
+      },
+      "launch": {
+        "when": "Jour 15",
+        "title": "Ouverture des réservations"
+      }
     },
-    "step2": {
-      "number": "02",
-      "title": "Formez vos équipes",
-      "desc": "Sessions de formation pour les concierges, directeurs spa et thérapeutes. Guides et support illimité inclus."
-    },
-    "step3": {
-      "number": "03",
-      "title": "Lancez les réservations",
-      "desc": "QR codes dans les chambres, booking en ligne, app thérapeute déployée. Vos clients réservent en 2 clics."
+    "lanes": {
+      "ours": {
+        "title": "Nous nous en chargeons",
+        "line": "La connexion à Opera Cloud ou Mews, la reprise de vos soins, tarifs, thérapeutes et fichier client, la formation de chaque équipe en visio ou sur place, et le suivi après l'ouverture. Sans frais de mise en service."
+      },
+      "yours": {
+        "title": "De votre côté",
+        "line": "Un appel avec votre direction spa, puis une heure de formation par équipe."
+      }
     }
   },
   "pricing": {
-    "eyebrow": "Tarifs",
-    "title": "Une tarification simple, alignée sur votre activité",
-    "subtitle": "Pas de frais cachés, pas d'engagement long terme. Deux offres, tout compris.",
+    "title": "Deux offres, selon la taille du lieu",
+    "subtitle": "Sans frais de mise en service, sans engagement.",
     "cycle": {
       "monthly": "Mensuel",
       "yearly": "Annuel",
@@ -183,7 +254,6 @@
     "starter": {
       "name": "Starter",
       "tagline": "Pour un spa indépendant ou un day spa qui démarre.",
-      "priceFrom": "À partir de",
       "unit": "HT / mois",
       "features": {
         "bookingsLimit": "Jusqu'à 150 réservations par mois",
@@ -194,13 +264,12 @@
         "support": "Support email & onboarding guidé"
       },
       "cta": "Démarrer avec Starter",
-      "note": "Sans engagement. Setup en 48h."
+      "note": ""
     },
     "pro": {
       "name": "Pro",
-      "badge": "Le plus populaire",
+      "badge": "Avec PMS Opera & Mews",
       "tagline": "Pour les hôtels qui veulent intégrer leur PMS et automatiser la facturation.",
-      "priceFrom": "À partir de",
       "unit": "HT / mois",
       "features": {
         "everythingStarter": "Réservations illimitées + tout Starter",
@@ -214,7 +283,8 @@
       "cta": "Essayer Pro",
       "note": "Essai gratuit 14 jours. Sans CB."
     },
-    "footnote": "Tous les prix en € HT. Facturation Stripe, paiement mensuel, sans engagement."
+    "footnote": "Tous les prix en € HT. Facturation Stripe, paiement mensuel, sans engagement.",
+    "compareLink": "Comparer les deux offres, fonctionnalité par fonctionnalité"
   },
   "faq": {
     "eyebrow": "Questions fréquentes",
@@ -223,11 +293,11 @@
     "items": {
       "pricing": {
         "q": "Combien coûte Saoma pour un spa d'hôtel ?",
-        "a": "Saoma propose trois formules : Starter à partir de 149 € HT / mois / lieu pour les day spas et spas indépendants, Pro à partir de 299 € HT / mois / lieu pour les hôtels avec intégration PMS, et Enterprise sur devis pour les groupes hôteliers multi-établissements. Tous les plans sont sans engagement, avec facturation Stripe mensuelle et tarif dégressif au-delà de 5 lieux."
+        "a": "Deux offres, sans engagement : Starter pour un day spa ou un spa indépendant, Pro pour les établissements qui intègrent leur PMS et automatisent la facturation. Les tarifs à jour et le détail fonctionnalité par fonctionnalité sont sur la page Tarifs. Facturation Stripe mensuelle, tarif dégressif au-delà de cinq lieux, et devis sur mesure pour les groupes multi-établissements."
       },
       "trial": {
         "q": "Est-ce que je peux essayer Saoma gratuitement ?",
-        "a": "Oui. Le plan Pro inclut un essai gratuit de 14 jours, sans carte bancaire requise. Vous pouvez configurer votre spa, ajouter vos thérapeutes et tester l'intégration PMS sans engagement. À l'issue de la période d'essai, vous choisissez de passer en formule payante ou d'arrêter, sans frais."
+        "a": "Oui. Le plan Pro inclut un essai gratuit de 14 jours, sans carte bancaire. Vous configurez votre spa, ajoutez vos thérapeutes et testez l'intégration PMS sans engagement. À l'issue de l'essai, vous passez en formule payante ou vous arrêtez, sans frais."
       },
       "pms": {
         "q": "Saoma s'intègre-t-il avec Opera Cloud et Mews ?",
@@ -235,7 +305,7 @@
       },
       "onboarding": {
         "q": "Combien de temps faut-il pour déployer Saoma dans mon spa ?",
-        "a": "Le déploiement complet — connexion PMS, formation des équipes, mise en ligne du booking client, déploiement de l'application thérapeute — prend en moyenne 2 semaines. Nous vous accompagnons avec un Customer Success Manager dédié, des sessions de formation pour les concierges et thérapeutes, et un support illimité pendant la phase de lancement."
+        "a": "Le déploiement complet (connexion PMS, formation des équipes, mise en ligne du booking client, déploiement de l'application thérapeute) prend en moyenne 2 semaines. Nous vous accompagnons avec un Customer Success Manager dédié, des sessions de formation pour les concierges et thérapeutes, et un support illimité pendant la phase de lancement."
       },
       "therapistApp": {
         "q": "Mes thérapeutes peuvent-ils utiliser Saoma sur mobile ?",
@@ -243,7 +313,7 @@
       },
       "roomCharge": {
         "q": "Comment fonctionne le room charge avec Saoma ?",
-        "a": "Quand un client de l'hôtel réserve un soin via Saoma — depuis un QR code en chambre, le concierge, ou un lien direct — il peut choisir de mettre le soin sur la note de chambre. Saoma communique avec votre PMS (Opera ou Mews), valide le numéro de chambre, et le montant est automatiquement ajouté à la facture du séjour. Le concierge reçoit une notification de confirmation."
+        "a": "Quand un client de l'hôtel réserve un soin via Saoma (depuis un QR code en chambre, le concierge, ou un lien direct), il peut choisir de mettre le soin sur la note de chambre. Saoma communique avec votre PMS (Opera ou Mews), valide le numéro de chambre, et le montant est automatiquement ajouté à la facture du séjour. Le concierge reçoit une notification de confirmation."
       },
       "multiVenue": {
         "q": "Saoma gère-t-il plusieurs spas ou plusieurs hôtels ?",
@@ -256,20 +326,20 @@
     }
   },
   "cta": {
-    "title": "Prêt à moderniser votre spa ?",
-    "subtitle": "Planifiez une démo personnalisée de 30 minutes avec notre équipe. Nous vous montrons la plateforme avec vos soins et votre organisation.",
+    "title": "Plus de vingt maisons en France gèrent leur spa sur Saoma",
+    "subtitle": "Trente minutes de démo, avec vos soins et votre organisation.",
     "button": "Réserver une démo",
     "secondary": "Ou écrivez-nous à contact@saoma.io"
   },
   "footer": {
-    "tagline": "Saoma — la plateforme de gestion spa pour hôtels & day spas.",
+    "tagline": "Saoma, la plateforme de gestion spa pour hôtels & day spas.",
     "signature": "L'art du spa, simplifié.",
     "product": "Produit",
     "company": "Société",
     "legal": "Légal",
     "links": {
       "features": "Fonctionnalités",
-      "howItWorks": "Comment ça marche",
+      "howItWorks": "Montée à bord",
       "pricing": "Tarifs",
       "changelog": "Nouveautés",
       "login": "Se connecter",
@@ -291,7 +361,7 @@
     "subtitle": "Toutes les fonctionnalités listées ci-dessous sont disponibles aujourd'hui, sauf mention contraire.",
     "table": {
       "feature": "Fonctionnalité",
-      "perMonth": " HT / mois"
+      "perMonth": " HT / mois sans engagement"
     },
     "legend": {
       "yes": "Inclus",
@@ -413,7 +483,7 @@
         "note": "Envoi par email et SMS"
       },
       "giftCards": {
-        "label": "Cartes cadeaux — vente, codes & suivi",
+        "label": "Cartes cadeaux : vente, codes & suivi",
         "note": "Portail public de validation des codes"
       },
       "promoCodes": {
@@ -534,7 +604,7 @@
       },
       "marketingAutomation": {
         "label": "Marketing automation & campagnes",
-        "note": "En développement — les emails transactionnels sont déjà inclus"
+        "note": "En développement. Les emails transactionnels sont déjà inclus"
       },
       "npsGoogle": {
         "label": "NPS & avis Google",
@@ -544,6 +614,24 @@
         "label": "Analytique prédictive",
         "note": "En développement"
       }
+    }
+  },
+  "plansPage": {
+    "title": "Tarifs",
+    "subtitle": "Ce que coûte Saoma, et ce que contient chaque offre."
+  },
+  "customers": {
+    "title": "Ils orchestrent leur spa avec Saoma",
+    "subtitle": "Des maisons parisiennes aux Relais & Châteaux de la Côte d'Azur.",
+    "soon": "Étude de cas en préparation",
+    "readStory": "Lire l'étude de cas",
+    "story": {
+      "back": "Toutes les études de cas",
+      "metaDescription": "Comment {{venue}} gère son spa avec Saoma.",
+      "soonTitle": "Cette étude de cas est en préparation.",
+      "soonBody": "Nous la rédigeons avec les équipes de l'établissement. Elle sera publiée une fois relue et validée de leur côté. En attendant, la démo montre la plateforme avec vos soins et votre organisation.",
+      "cta": "Réserver une démo",
+      "visitSite": "Voir le site de l'établissement"
     }
   }
 }

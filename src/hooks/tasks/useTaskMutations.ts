@@ -10,7 +10,14 @@ import {
   type TaskChecklistItem,
 } from "@shared/db";
 import type { Database, Json } from "@/integrations/supabase/types";
-import type { TaskStatus, TaskPriority, TaskType } from "./useTasks";
+import type { TaskGroupBy } from "@/components/admin/tasks/taskDnd";
+import type {
+  TaskStatus,
+  TaskPriority,
+  TaskType,
+  TaskChannel,
+  TaskFeedbackType,
+} from "./useTasks";
 
 type TaskInsert = Database["public"]["Tables"]["tasks"]["Insert"];
 type TaskUpdate = Database["public"]["Tables"]["tasks"]["Update"];
@@ -32,6 +39,18 @@ interface TaskFields {
   booking_id?: string | null;
   customer_id?: string | null;
   assigned_to_user_id?: string | null;
+  channel?: TaskChannel | string | null;
+  feedback_type?: TaskFeedbackType | string | null;
+  /** Même domaine que bookings.client_type, repris tel quel à la conversion. */
+  client_type?: string | null;
+  /** Date du soin demandé — distincte de due_date, l'échéance de la tâche. */
+  treatment_date?: string | null;
+  /** Coordonnées saisies avant qu'une fiche client n'existe. */
+  prospect_first_name?: string | null;
+  prospect_last_name?: string | null;
+  prospect_email?: string | null;
+  prospect_phone?: string | null;
+  converted_booking_id?: string | null;
 }
 
 export type CreateTaskInput = TaskFields;
@@ -82,6 +101,15 @@ function taskColumns(input: TaskFields) {
     booking_id: input.booking_id ?? null,
     customer_id: input.customer_id ?? null,
     assigned_to_user_id: input.assigned_to_user_id ?? null,
+    channel: input.channel ?? null,
+    feedback_type: input.feedback_type ?? null,
+    client_type: input.client_type ?? null,
+    treatment_date: input.treatment_date ?? null,
+    prospect_first_name: input.prospect_first_name ?? null,
+    prospect_last_name: input.prospect_last_name ?? null,
+    prospect_email: input.prospect_email ?? null,
+    prospect_phone: input.prospect_phone ?? null,
+    converted_booking_id: input.converted_booking_id ?? null,
     completed_at: input.status === "done" ? new Date().toISOString() : null,
   };
 }
@@ -139,14 +167,41 @@ export function useTaskMutations() {
   });
 
   // Column drag & drop: status + ordering only.
+  // Le board se groupe par statut, priorité ou type : un glisser-déposer écrit
+  // la colonne de la dimension affichée, et elle seule. `completed_at` ne suit
+  // que le statut — déplacer une carte dans la colonne « Urgente » ne doit pas
+  // la marquer terminée.
   const move = useMutation({
-    mutationFn: async (input: { id: string; status: TaskStatus; position: number }) => {
-      const patch: TaskUpdate = {
-        status: input.status,
-        position: input.position,
-        completed_at: input.status === "done" ? new Date().toISOString() : null,
-      };
+    mutationFn: async (input: {
+      id: string;
+      groupBy: TaskGroupBy;
+      value: string;
+      position: number;
+    }) => {
+      const patch: TaskUpdate = { position: input.position };
+      if (input.groupBy === "status") {
+        patch.status = input.value;
+        patch.completed_at = input.value === "done" ? new Date().toISOString() : null;
+      } else if (input.groupBy === "priority") {
+        patch.priority = input.value;
+      } else {
+        patch.task_type = input.value;
+      }
       return updateTaskDb(supabase, input.id, patch);
+    },
+    onSuccess: invalidate,
+  });
+
+  // Édition inline : on écrit un seul champ à la fois, sans repasser par
+  // taskColumns() qui réécrit la ligne entière. `completed_at` reste couplé au
+  // statut, où qu'il soit modifié.
+  const patch = useMutation({
+    mutationFn: async ({ id, ...fields }: { id: string } & TaskUpdate) => {
+      const next: TaskUpdate = { ...fields };
+      if (typeof fields.status === "string") {
+        next.completed_at = fields.status === "done" ? new Date().toISOString() : null;
+      }
+      return updateTaskDb(supabase, id, next);
     },
     onSuccess: invalidate,
   });
@@ -156,5 +211,5 @@ export function useTaskMutations() {
     onSuccess: invalidate,
   });
 
-  return { create, update, move, remove };
+  return { create, update, move, patch, remove };
 }

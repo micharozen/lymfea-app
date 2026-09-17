@@ -48,6 +48,7 @@ const TherapistDetail = lazy(() => import("./pages/admin/TherapistDetail"));
 const AdminTreatments = lazy(() => import("./pages/admin/Treatments"));
 const TreatmentDetail = lazy(() => import("./pages/admin/TreatmentDetail"));
 const TreatmentRooms = lazy(() => import("./pages/admin/TreatmentRooms"));
+const PromoCodes = lazy(() => import("./pages/admin/PromoCodes"));
 const TreatmentRoomDetail = lazy(() => import("./pages/admin/TreatmentRoomDetail"));
 const Concierges = lazy(() => import("./pages/admin/Concierges"));
 const Customers = lazy(() => import("./pages/admin/Customers"));
@@ -87,6 +88,9 @@ const OnboardingComplete = lazy(() => import("./pages/onboarding/Complete"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const Home = lazy(() => import("./pages/Home"));
 const Landing = lazy(() => import("./pages/Landing"));
+const Plans = lazy(() => import("./pages/Plans"));
+const CustomerStoriesPage = lazy(() => import("./pages/Customers"));
+const CustomerStory = lazy(() => import("./pages/CustomerStory"));
 const Compare = lazy(() => import("./pages/Compare"));
 const CompareDetail = lazy(() => import("./pages/CompareDetail"));
 const Terms = lazy(() => import("./pages/Terms"));
@@ -258,6 +262,9 @@ const App = () => {
           <Routes>
             {/* Root - Public marketing landing page */}
             <Route path="/" element={<Landing />} />
+            <Route path="/tarifs" element={<Plans />} />
+            <Route path="/clients" element={<CustomerStoriesPage />} />
+            <Route path="/clients/:slug" element={<CustomerStory />} />
             <Route path="/compare" element={<Compare />} />
             <Route path="/compare/:slug" element={<CompareDetail />} />
             <Route path="/terms" element={<Terms />} />
@@ -509,6 +516,7 @@ const App = () => {
                               <Route path="/treatments/new" element={<TreatmentDetail />} />
                               <Route path="/treatments/:id" element={<TreatmentDetail />} />
                               <Route path="/treatment-rooms" element={<TreatmentRooms />} />
+              <Route path="/promo-codes" element={<PromoCodes />} />
                               <Route path="/treatment-rooms/new" element={<TreatmentRoomDetail />} />
                               <Route path="/treatment-rooms/:id" element={<TreatmentRoomDetail />} />
                               <Route path="/concierges" element={<Concierges />} />

@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { format } from "date-fns";
-import { Inbox, Search, ArrowUp, ArrowDown, ArrowUpDown, List, Columns3 } from "lucide-react";
+import { Inbox, Search, ArrowUp, ArrowDown, ArrowUpDown, List, Columns3, ListTodo } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,10 +28,10 @@ const ARCHIVE_AGE_DAYS = 10;
 const ARCHIVE_AGE_MS = ARCHIVE_AGE_DAYS * 24 * 60 * 60 * 1000;
 
 import {
-  useEmailInquiries,
-  type EmailInquiry,
-  type EmailInquiryStatus,
-} from "@/hooks/inbox/useEmailInquiries";
+  useChannelMessages,
+  type ChannelMessage,
+  type ChannelMessageStatus,
+} from "@/hooks/inbox/useChannelMessages";
 import { EmailInquiryDetail } from "@/components/admin/inbox/EmailInquiryDetail";
 import { InquiryKanban } from "@/components/admin/inbox/InquiryKanban";
 import {
@@ -42,7 +42,7 @@ import {
 } from "@/components/admin/inbox/inquiryStatus";
 
 // Inbox lists root inbound rows only; outbound `sent` rows never appear here.
-const STATUS_OPTIONS: Array<EmailInquiryStatus | "all"> = [
+const STATUS_OPTIONS: Array<ChannelMessageStatus | "all"> = [
   "all",
   "parsed",
   "received",
@@ -67,16 +67,16 @@ export default function EmailInbox() {
   const { t } = useTranslation(["admin", "common"]);
   const [tab, setTab] = useState<"active" | "archived">("active");
   const [view, setView] = useState<View>(readStoredView);
-  const [statusFilter, setStatusFilter] = useState<EmailInquiryStatus | "all">("all");
+  const [statusFilter, setStatusFilter] = useState<ChannelMessageStatus | "all">("all");
   const [venueFilter, setVenueFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [selected, setSelected] = useState<EmailInquiry | null>(null);
+  const [selected, setSelected] = useState<ChannelMessage | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>("received");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
   // On the board the columns are the statuses, so filtering by one would leave
   // every other column empty — fetch them all.
-  const { data: inquiries = [], isLoading, refetch } = useEmailInquiries({
+  const { data: inquiries = [], isLoading, refetch } = useChannelMessages({
     status: view === "kanban" ? "all" : statusFilter,
   });
 
@@ -109,8 +109,8 @@ export default function EmailInbox() {
       if (venueFilter !== "all" && inq.hotel?.id !== venueFilter) return false;
       if (!q) return true;
       return (
-        inq.from_address.toLowerCase().includes(q)
-        || inq.to_address.toLowerCase().includes(q)
+        inq.from_identifier.toLowerCase().includes(q)
+        || inq.to_identifier.toLowerCase().includes(q)
         || (inq.subject ?? "").toLowerCase().includes(q)
         || (inq.hotel?.name ?? "").toLowerCase().includes(q)
       );
@@ -199,7 +199,7 @@ export default function EmailInbox() {
             {view === "table" && (
               <Select
                 value={statusFilter}
-                onValueChange={v => setStatusFilter(v as EmailInquiryStatus | "all")}
+                onValueChange={v => setStatusFilter(v as ChannelMessageStatus | "all")}
               >
                 <SelectTrigger className="w-[200px]">
                   <SelectValue />
@@ -321,14 +321,30 @@ export default function EmailInbox() {
                       <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
                         {format(new Date(inq.created_at), "dd/MM/yyyy HH:mm")}
                       </TableCell>
-                      <TableCell className="font-medium">{inq.from_address}</TableCell>
+                      <TableCell className="font-medium">{inq.from_identifier}</TableCell>
                       <TableCell className="text-sm">
                         {inq.hotel?.name ?? <span className="text-muted-foreground italic">{t("inbox.unknownVenue")}</span>}
                       </TableCell>
                       <TableCell className="max-w-[300px] truncate">
                         {inq.subject ?? <span className="text-muted-foreground italic">{t("inbox.noSubject")}</span>}
                       </TableCell>
-                      <TableCell>{statusBadge(inq.status, t)}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1.5">
+                          {statusBadge(inq.status, t)}
+                          {/* Le suivi du travail vit sur la tâche : on y renvoie
+                              plutôt que de dupliquer l'état ici. */}
+                          {inq.task_id && (
+                            <a
+                              href={`/admin/tasks?task=${inq.task_id}`}
+                              onClick={(event) => event.stopPropagation()}
+                              className="text-primary inline-flex items-center gap-1 text-xs hover:underline"
+                            >
+                              <ListTodo className="h-3 w-3" />
+                              {t("inbox.openTask")}
+                            </a>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell className={cn("text-right text-sm tabular-nums font-medium", confidenceClass(inq.confidence_score))}>
                         {formatConfidence(inq.confidence_score)}
                       </TableCell>

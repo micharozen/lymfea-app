@@ -5,10 +5,9 @@ import { Hero } from "@/components/landing/Hero";
 import { TrustedBy } from "@/components/landing/TrustedBy";
 import { ProblemSolution } from "@/components/landing/ProblemSolution";
 import { FeaturesGrid } from "@/components/landing/FeaturesGrid";
-import { AiSpotlight } from "@/components/landing/AiSpotlight";
+import { Differentiators } from "@/components/landing/Differentiators";
 import { HowItWorks } from "@/components/landing/HowItWorks";
 import { Pricing } from "@/components/landing/Pricing";
-import { PlanComparison } from "@/components/landing/plans/PlanComparison";
 import { Faq } from "@/components/landing/Faq";
 import { CtaSection } from "@/components/landing/CtaSection";
 import { Footer } from "@/components/landing/Footer";
@@ -39,10 +38,9 @@ const Landing = () => {
         <TrustedBy />
         <ProblemSolution />
         <FeaturesGrid />
-        <AiSpotlight />
+        <Differentiators />
         <HowItWorks />
         <Pricing />
-        <PlanComparison />
         <Faq />
         <CtaSection />
       </main>

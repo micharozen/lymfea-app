@@ -238,6 +238,23 @@
     "giftTreatmentsStep3": "The recipient books their sessions online with their code, without paying again",
     "confirmBundleSession": "Confirm (package session)"
   },
+  "promoCode": {
+    "cta": "I have a promo code",
+    "title": "Promo code",
+    "subtitle": "Enter your code to get the discount",
+    "placeholder": "e.g. SUMMER20",
+    "apply": "Apply",
+    "remove": "Remove promo code",
+    "applied": "Code {{code}} applied",
+    "summaryLine": "Discount ({{code}})",
+    "errorNotFound": "This promo code is not valid.",
+    "errorExpired": "This promo code is no longer valid.",
+    "errorExhausted": "This promo code has reached its usage limit.",
+    "errorNoEligibleTreatment": "This code does not apply to any treatment in your cart.",
+    "errorTooMany": "Too many attempts. Please try again in a few minutes.",
+    "errorGeneric": "Could not verify the code. Please try again.",
+    "errorCustomerLimit": "You have already used this promo code."
+  },
   "confirmation": {
     "title": "Booking Confirmed",
     "message": "You will receive a confirmation email with all the details of your booking",

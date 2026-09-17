@@ -13,6 +13,8 @@ import {
   insertBookingTreatmentLines,
 } from '../_shared/bookingTreatmentLines.ts';
 import { runInBackground } from '../_shared/backgroundTask.ts';
+import { resolveCatalogLines } from '../_shared/pricing.ts';
+import { computePromoDiscount, fetchPromoCodeById, roundToCents } from '../_shared/promo.ts';
 import { deriveClientFlowClientType } from '../_shared/client-type.ts';
 
 const corsHeaders = {
@@ -98,6 +100,7 @@ const multiRequestSchema = z.object({
   paymentMethod: z.enum(['room', 'card', 'cash', 'offert', 'gift_amount']).optional().default('room'),
   totalPrice: z.number().min(0).max(100000),
   therapistGender: z.enum(['female', 'male']).optional(),
+  promoCodeId: z.string().uuid().optional(),
   checkoutIntentId: z.string().uuid().optional(),
 });
 
@@ -109,6 +112,7 @@ const requestSchema = z.object({
   paymentMethod: z.enum(['room', 'card', 'cash', 'offert', 'gift_amount']).optional().default('room'),
   totalPrice: z.number().min(0, 'Total price must be positive').max(100000, 'Total price exceeds maximum'),
   therapistGender: z.enum(['female', 'male']).optional(),
+  promoCodeId: z.string().uuid().optional(),
   bundleUsage: bundleUsageSchema.optional(),
   draftBookingId: z.string().uuid('Invalid draft booking ID').optional(),
   guestCount: z.number().int().min(1).max(20).optional().default(1),
@@ -462,6 +466,7 @@ try {
       paymentMethod,
       totalPrice,
       therapistGender,
+      promoCodeId,
       bundleUsage,
       draftBookingId,
       guestCount,
@@ -693,7 +698,29 @@ try {
     // Recalcul serveur de la majoration hors horaires (source de vérité — ignore le totalPrice client)
     const basePrice = isOffert ? 0 : (hasPriceOnRequest ? 0 : totalPrice);
     const surcharge = computeOutOfHoursSurcharge(bookingData.time, basePrice, hotel);
-    const effectiveTotalPrice = basePrice + surcharge.surchargeAmount;
+    let effectiveTotalPrice = basePrice + surcharge.surchargeAmount;
+
+    // Code promo. Les prix catalogue ne servent qu'à déterminer l'assiette
+    // éligible : le prix de base reste celui transmis par le client, comme
+    // avant. Un devis non chiffré ou un soin offert ne consomme pas de code.
+    let promoDiscount = 0;
+    let promoCode = null;
+    if (promoCodeId && basePrice > 0) {
+      promoCode = await fetchPromoCodeById(supabase, promoCodeId, hotelId, {
+        phone: clientData.phone,
+        email: clientData.email,
+      });
+      if (promoCode) {
+        const catalogLines = await resolveCatalogLines(supabase, treatments);
+        promoDiscount = computePromoDiscount(catalogLines, promoCode).discount;
+        // La remise ne peut pas dépasser ce qui est réellement facturé.
+        promoDiscount = Math.min(promoDiscount, basePrice);
+        // Le code promo baisse le prix de vente : total_price porte le montant
+        // réellement dû (CA, factures, note de chambre). promo_discount_cents
+        // garde la trace de la remise — le brut reste total + remise.
+        effectiveTotalPrice = roundToCents(Math.max(0, effectiveTotalPrice - promoDiscount));
+      }
+    }
     const effectivePaymentMethod = isOffert ? 'offert' : (paymentMethod === 'gift_amount' ? 'gift_amount' : paymentMethod);
     const effectivePaymentStatus = isOffert
       ? 'offert'
@@ -886,6 +913,23 @@ try {
       .update({ source: 'client', client_type: effectiveClientType })
       .eq('id', bookingId);
     if (sourceErr) console.error('Failed to tag booking source=client (non-blocking):', sourceErr);
+
+    // Consommation du code promo : la réservation existe, on peut journaliser
+    // l'usage et incrémenter le compteur. Non bloquant — une remise perdue ne
+    // doit pas faire échouer une réservation déjà créée.
+    if (promoCode && promoDiscount > 0) {
+      const { data: redeemed, error: promoErr } = await supabase.rpc('redeem_promo_code', {
+        _promo_code_id: promoCode.id,
+        _booking_id: bookingId,
+        _hotel_id: hotelId,
+        _customer_id: customerId || null,
+        _discount_cents: Math.round(promoDiscount * 100),
+      });
+      if (promoErr || !redeemed?.applied) {
+        console.error('redeem_promo_code failed (non-blocking):', promoErr?.message || redeemed?.reason);
+        promoDiscount = 0;
+      }
+    }
 
     // Persister les flags de majoration hors horaires sur la réservation
     if (!isOffert && !hasPriceOnRequest && (surcharge.isOutOfHours || surcharge.surchargeAmount > 0)) {

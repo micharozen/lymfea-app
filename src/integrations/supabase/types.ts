@@ -734,6 +734,7 @@ export type Database = {
           broadcast_wave_sent_at: string | null
           bundle_usage_id: string | null
           cancellation_reason: string | null
+          channel_message_id: string | null
           client_email: string | null
           client_first_name: string
           client_form_data: Json | null
@@ -745,7 +746,6 @@ export type Database = {
           customer_id: string | null
           declined_by: string[] | null
           duration: number | null
-          email_inquiry_id: string | null
           external_id: string | null
           external_reference: string | null
           external_voucher_reference: string | null
@@ -773,6 +773,8 @@ export type Database = {
           pms_error_message: string | null
           pms_guest_check_in: string | null
           pms_guest_check_out: string | null
+          promo_code_id: string | null
+          promo_discount_cents: number
           quote_token: string | null
           reconfirm_until: string | null
           room_id: string | null
@@ -802,6 +804,7 @@ export type Database = {
           broadcast_wave_sent_at?: string | null
           bundle_usage_id?: string | null
           cancellation_reason?: string | null
+          channel_message_id?: string | null
           client_email?: string | null
           client_first_name: string
           client_form_data?: Json | null
@@ -813,7 +816,6 @@ export type Database = {
           customer_id?: string | null
           declined_by?: string[] | null
           duration?: number | null
-          email_inquiry_id?: string | null
           external_id?: string | null
           external_reference?: string | null
           external_voucher_reference?: string | null
@@ -841,6 +843,8 @@ export type Database = {
           pms_error_message?: string | null
           pms_guest_check_in?: string | null
           pms_guest_check_out?: string | null
+          promo_code_id?: string | null
+          promo_discount_cents?: number
           quote_token?: string | null
           reconfirm_until?: string | null
           room_id?: string | null
@@ -870,6 +874,7 @@ export type Database = {
           broadcast_wave_sent_at?: string | null
           bundle_usage_id?: string | null
           cancellation_reason?: string | null
+          channel_message_id?: string | null
           client_email?: string | null
           client_first_name?: string
           client_form_data?: Json | null
@@ -881,7 +886,6 @@ export type Database = {
           customer_id?: string | null
           declined_by?: string[] | null
           duration?: number | null
-          email_inquiry_id?: string | null
           external_id?: string | null
           external_reference?: string | null
           external_voucher_reference?: string | null
@@ -909,6 +913,8 @@ export type Database = {
           pms_error_message?: string | null
           pms_guest_check_in?: string | null
           pms_guest_check_out?: string | null
+          promo_code_id?: string | null
+          promo_discount_cents?: number
           quote_token?: string | null
           reconfirm_until?: string | null
           room_id?: string | null
@@ -955,6 +961,13 @@ export type Database = {
             columns: ["hotel_id"]
             isOneToOne: false
             referencedRelation: "hotels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookings_promo_code_id_fkey"
+            columns: ["promo_code_id"]
+            isOneToOne: false
+            referencedRelation: "promo_codes"
             referencedColumns: ["id"]
           },
           {
@@ -1054,6 +1067,120 @@ export type Database = {
             columns: ["treatment_id"]
             isOneToOne: false
             referencedRelation: "treatment_menus"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      channel_messages: {
+        Row: {
+          booking_id: string | null
+          channel: string
+          confidence_score: number | null
+          created_at: string
+          customer_id: string | null
+          direction: string
+          error_message: string | null
+          external_message_id: string | null
+          from_identifier: string
+          hotel_id: string | null
+          id: string
+          last_reply_at: string | null
+          parent_message_id: string | null
+          parsed_data: Json | null
+          raw_body_html: string | null
+          raw_body_text: string | null
+          raw_payload: Json | null
+          sent_by: string | null
+          status: string
+          subject: string | null
+          task_id: string | null
+          to_identifier: string
+          updated_at: string
+        }
+        Insert: {
+          booking_id?: string | null
+          channel?: string
+          confidence_score?: number | null
+          created_at?: string
+          customer_id?: string | null
+          direction?: string
+          error_message?: string | null
+          external_message_id?: string | null
+          from_identifier: string
+          hotel_id?: string | null
+          id?: string
+          last_reply_at?: string | null
+          parent_message_id?: string | null
+          parsed_data?: Json | null
+          raw_body_html?: string | null
+          raw_body_text?: string | null
+          raw_payload?: Json | null
+          sent_by?: string | null
+          status?: string
+          subject?: string | null
+          task_id?: string | null
+          to_identifier: string
+          updated_at?: string
+        }
+        Update: {
+          booking_id?: string | null
+          channel?: string
+          confidence_score?: number | null
+          created_at?: string
+          customer_id?: string | null
+          direction?: string
+          error_message?: string | null
+          external_message_id?: string | null
+          from_identifier?: string
+          hotel_id?: string | null
+          id?: string
+          last_reply_at?: string | null
+          parent_message_id?: string | null
+          parsed_data?: Json | null
+          raw_body_html?: string | null
+          raw_body_text?: string | null
+          raw_payload?: Json | null
+          sent_by?: string | null
+          status?: string
+          subject?: string | null
+          task_id?: string | null
+          to_identifier?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_messages_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "channel_messages_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "channel_messages_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "channel_messages_parent_message_id_fkey"
+            columns: ["parent_message_id"]
+            isOneToOne: false
+            referencedRelation: "channel_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "channel_messages_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
             referencedColumns: ["id"]
           },
         ]
@@ -1525,97 +1652,6 @@ export type Database = {
             columns: ["preferred_therapist_id"]
             isOneToOne: false
             referencedRelation: "therapists"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      email_inquiries: {
-        Row: {
-          booking_id: string | null
-          confidence_score: number | null
-          created_at: string
-          direction: string
-          error_message: string | null
-          from_address: string
-          hotel_id: string | null
-          id: string
-          last_reply_at: string | null
-          message_id: string | null
-          parent_inquiry_id: string | null
-          parsed_data: Json | null
-          raw_body_html: string | null
-          raw_body_text: string | null
-          raw_payload: Json | null
-          sent_by: string | null
-          status: string
-          subject: string | null
-          to_address: string
-          updated_at: string
-        }
-        Insert: {
-          booking_id?: string | null
-          confidence_score?: number | null
-          created_at?: string
-          direction?: string
-          error_message?: string | null
-          from_address: string
-          hotel_id?: string | null
-          id?: string
-          last_reply_at?: string | null
-          message_id?: string | null
-          parent_inquiry_id?: string | null
-          parsed_data?: Json | null
-          raw_body_html?: string | null
-          raw_body_text?: string | null
-          raw_payload?: Json | null
-          sent_by?: string | null
-          status?: string
-          subject?: string | null
-          to_address: string
-          updated_at?: string
-        }
-        Update: {
-          booking_id?: string | null
-          confidence_score?: number | null
-          created_at?: string
-          direction?: string
-          error_message?: string | null
-          from_address?: string
-          hotel_id?: string | null
-          id?: string
-          last_reply_at?: string | null
-          message_id?: string | null
-          parent_inquiry_id?: string | null
-          parsed_data?: Json | null
-          raw_body_html?: string | null
-          raw_body_text?: string | null
-          raw_payload?: Json | null
-          sent_by?: string | null
-          status?: string
-          subject?: string | null
-          to_address?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "email_inquiries_booking_id_fkey"
-            columns: ["booking_id"]
-            isOneToOne: false
-            referencedRelation: "bookings"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "email_inquiries_hotel_id_fkey"
-            columns: ["hotel_id"]
-            isOneToOne: false
-            referencedRelation: "hotels"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "email_inquiries_parent_inquiry_id_fkey"
-            columns: ["parent_inquiry_id"]
-            isOneToOne: false
-            referencedRelation: "email_inquiries"
             referencedColumns: ["id"]
           },
         ]
@@ -2439,6 +2475,204 @@ export type Database = {
         }
         Relationships: []
       }
+      promo_code_redemptions: {
+        Row: {
+          booking_id: string
+          customer_id: string | null
+          discount_amount_cents: number
+          hotel_id: string | null
+          id: string
+          promo_code_id: string
+          redeemed_at: string
+        }
+        Insert: {
+          booking_id: string
+          customer_id?: string | null
+          discount_amount_cents: number
+          hotel_id?: string | null
+          id?: string
+          promo_code_id: string
+          redeemed_at?: string
+        }
+        Update: {
+          booking_id?: string
+          customer_id?: string | null
+          discount_amount_cents?: number
+          hotel_id?: string | null
+          id?: string
+          promo_code_id?: string
+          redeemed_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promo_code_redemptions_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promo_code_redemptions_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promo_code_redemptions_promo_code_id_fkey"
+            columns: ["promo_code_id"]
+            isOneToOne: false
+            referencedRelation: "promo_codes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      promo_code_treatments: {
+        Row: {
+          promo_code_id: string
+          treatment_id: string
+        }
+        Insert: {
+          promo_code_id: string
+          treatment_id: string
+        }
+        Update: {
+          promo_code_id?: string
+          treatment_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promo_code_treatments_promo_code_id_fkey"
+            columns: ["promo_code_id"]
+            isOneToOne: false
+            referencedRelation: "promo_codes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promo_code_treatments_treatment_id_fkey"
+            columns: ["treatment_id"]
+            isOneToOne: false
+            referencedRelation: "treatment_menus"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      promo_codes: {
+        Row: {
+          code: string
+          code_normalized: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          discount_type: string
+          discount_value: number
+          hotel_id: string | null
+          id: string
+          is_active: boolean
+          max_per_customer: number | null
+          max_redemptions: number | null
+          organization_id: string
+          redemption_count: number
+          updated_at: string
+          valid_from: string | null
+          valid_until: string | null
+        }
+        Insert: {
+          code: string
+          code_normalized: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          discount_type: string
+          discount_value: number
+          hotel_id?: string | null
+          id?: string
+          is_active?: boolean
+          max_per_customer?: number | null
+          max_redemptions?: number | null
+          organization_id: string
+          redemption_count?: number
+          updated_at?: string
+          valid_from?: string | null
+          valid_until?: string | null
+        }
+        Update: {
+          code?: string
+          code_normalized?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          discount_type?: string
+          discount_value?: number
+          hotel_id?: string | null
+          id?: string
+          is_active?: boolean
+          max_per_customer?: number | null
+          max_redemptions?: number | null
+          organization_id?: string
+          redemption_count?: number
+          updated_at?: string
+          valid_from?: string | null
+          valid_until?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promo_codes_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promo_codes_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      push_delivery_logs: {
+        Row: {
+          booking_id: string | null
+          error: string | null
+          id: string
+          notification_type: string | null
+          onesignal_notification_id: string | null
+          sent_at: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          booking_id?: string | null
+          error?: string | null
+          id?: string
+          notification_type?: string | null
+          onesignal_notification_id?: string | null
+          sent_at?: string
+          status: string
+          user_id: string
+        }
+        Update: {
+          booking_id?: string | null
+          error?: string | null
+          id?: string
+          notification_type?: string | null
+          onesignal_notification_id?: string | null
+          sent_at?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_delivery_logs_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       push_notification_logs: {
         Row: {
           booking_id: string
@@ -2641,28 +2875,95 @@ export type Database = {
           },
         ]
       }
+      task_comments: {
+        Row: {
+          author_user_id: string | null
+          content: string
+          created_at: string
+          id: string
+          mentioned_user_ids: string[]
+          organization_id: string
+          parent_comment_id: string | null
+          task_id: string
+          updated_at: string
+        }
+        Insert: {
+          author_user_id?: string | null
+          content: string
+          created_at?: string
+          id?: string
+          mentioned_user_ids?: string[]
+          organization_id: string
+          parent_comment_id?: string | null
+          task_id: string
+          updated_at?: string
+        }
+        Update: {
+          author_user_id?: string | null
+          content?: string
+          created_at?: string
+          id?: string
+          mentioned_user_ids?: string[]
+          organization_id?: string
+          parent_comment_id?: string | null
+          task_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_comments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_comments_parent_comment_id_fkey"
+            columns: ["parent_comment_id"]
+            isOneToOne: false
+            referencedRelation: "task_comments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_comments_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tasks: {
         Row: {
           assigned_to_user_id: string | null
           attachments: string[]
           booking_id: string | null
+          channel: string | null
           checklist: Json
+          client_type: string | null
           completed_at: string | null
+          converted_booking_id: string | null
           created_at: string
           created_by: string | null
           customer_id: string | null
           description: string | null
           due_date: string | null
+          feedback_type: string | null
           hotel_id: string | null
           id: string
           organization_id: string
           position: number
           priority: string
+          prospect_email: string | null
+          prospect_first_name: string | null
+          prospect_last_name: string | null
+          prospect_phone: string | null
           status: string
           task_type: string
           task_type_other: string | null
           therapist_ids: string[]
           title: string
+          treatment_date: string | null
           treatment_menu_ids: string[]
           updated_at: string
         }
@@ -2670,23 +2971,32 @@ export type Database = {
           assigned_to_user_id?: string | null
           attachments?: string[]
           booking_id?: string | null
+          channel?: string | null
           checklist?: Json
+          client_type?: string | null
           completed_at?: string | null
+          converted_booking_id?: string | null
           created_at?: string
           created_by?: string | null
           customer_id?: string | null
           description?: string | null
           due_date?: string | null
+          feedback_type?: string | null
           hotel_id?: string | null
           id?: string
           organization_id: string
           position?: number
           priority?: string
+          prospect_email?: string | null
+          prospect_first_name?: string | null
+          prospect_last_name?: string | null
+          prospect_phone?: string | null
           status?: string
           task_type?: string
           task_type_other?: string | null
           therapist_ids?: string[]
           title: string
+          treatment_date?: string | null
           treatment_menu_ids?: string[]
           updated_at?: string
         }
@@ -2694,23 +3004,32 @@ export type Database = {
           assigned_to_user_id?: string | null
           attachments?: string[]
           booking_id?: string | null
+          channel?: string | null
           checklist?: Json
+          client_type?: string | null
           completed_at?: string | null
+          converted_booking_id?: string | null
           created_at?: string
           created_by?: string | null
           customer_id?: string | null
           description?: string | null
           due_date?: string | null
+          feedback_type?: string | null
           hotel_id?: string | null
           id?: string
           organization_id?: string
           position?: number
           priority?: string
+          prospect_email?: string | null
+          prospect_first_name?: string | null
+          prospect_last_name?: string | null
+          prospect_phone?: string | null
           status?: string
           task_type?: string
           task_type_other?: string | null
           therapist_ids?: string[]
           title?: string
+          treatment_date?: string | null
           treatment_menu_ids?: string[]
           updated_at?: string
         }
@@ -2718,6 +3037,13 @@ export type Database = {
           {
             foreignKeyName: "tasks_booking_id_fkey"
             columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_converted_booking_id_fkey"
+            columns: ["converted_booking_id"]
             isOneToOne: false
             referencedRelation: "bookings"
             referencedColumns: ["id"]
@@ -4128,6 +4454,7 @@ export type Database = {
           broadcast_wave_sent_at: string | null
           bundle_usage_id: string | null
           cancellation_reason: string | null
+          channel_message_id: string | null
           client_email: string | null
           client_first_name: string
           client_form_data: Json | null
@@ -4139,7 +4466,6 @@ export type Database = {
           customer_id: string | null
           declined_by: string[] | null
           duration: number | null
-          email_inquiry_id: string | null
           external_id: string | null
           external_reference: string | null
           external_voucher_reference: string | null
@@ -4167,6 +4493,8 @@ export type Database = {
           pms_error_message: string | null
           pms_guest_check_in: string | null
           pms_guest_check_out: string | null
+          promo_code_id: string | null
+          promo_discount_cents: number
           quote_token: string | null
           reconfirm_until: string | null
           room_id: string | null
@@ -4211,6 +4539,7 @@ export type Database = {
           broadcast_wave_sent_at: string | null
           bundle_usage_id: string | null
           cancellation_reason: string | null
+          channel_message_id: string | null
           client_email: string | null
           client_first_name: string
           client_form_data: Json | null
@@ -4222,7 +4551,6 @@ export type Database = {
           customer_id: string | null
           declined_by: string[] | null
           duration: number | null
-          email_inquiry_id: string | null
           external_id: string | null
           external_reference: string | null
           external_voucher_reference: string | null
@@ -4250,6 +4578,8 @@ export type Database = {
           pms_error_message: string | null
           pms_guest_check_in: string | null
           pms_guest_check_out: string | null
+          promo_code_id: string | null
+          promo_discount_cents: number
           quote_token: string | null
           reconfirm_until: string | null
           room_id: string | null
@@ -4278,12 +4608,16 @@ export type Database = {
       }
       booking_has_open_leg: { Args: { _booking_id: string }; Returns: boolean }
       can_access_customer: { Args: { _customer_id: string }; Returns: boolean }
-      can_assign_therapist_to_booking: {
-        Args: { _booking_id: string; _target_therapist_id: string }
+      can_access_customer_row: {
+        Args: {
+          _auth_user_id: string
+          _customer_id: string
+          _organization_id: string
+        }
         Returns: boolean
       }
-      can_manage_booking_rooms: {
-        Args: { _booking_id: string; _user_id: string }
+      can_assign_therapist_to_booking: {
+        Args: { _booking_id: string; _target_therapist_id: string }
         Returns: boolean
       }
       claim_gift_card: {
@@ -4589,10 +4923,22 @@ export type Database = {
           unique_sessions: number
         }[]
       }
+      get_concierge_customer_ids: {
+        Args: { _user_id: string }
+        Returns: {
+          customer_id: string
+        }[]
+      }
       get_concierge_hotels: {
         Args: { _user_id: string }
         Returns: {
           hotel_id: string
+        }[]
+      }
+      get_customer_ids_for_user: {
+        Args: { _user_id: string }
+        Returns: {
+          customer_id: string
         }[]
       }
       get_customer_portal_data: { Args: { _hotel_id?: string }; Returns: Json }
@@ -4631,6 +4977,15 @@ export type Database = {
       get_payment_stripe_secrets: {
         Args: { p_hotel_id: string }
         Returns: Json
+      }
+      get_promo_code_stats: {
+        Args: { _promo_code_ids: string[] }
+        Returns: {
+          last_redeemed_at: string
+          promo_code_id: string
+          redemptions: number
+          total_discount_cents: number
+        }[]
       }
       get_public_booking: {
         Args: { p_token: string }
@@ -4871,6 +5226,12 @@ export type Database = {
           session_count: number
         }[]
       }
+      get_therapist_customer_ids: {
+        Args: { _user_id: string }
+        Returns: {
+          customer_id: string
+        }[]
+      }
       get_therapist_id: { Args: { _user_id: string }; Returns: string }
       get_user_org_id: { Args: { _user_id: string }; Returns: string }
       get_user_organization_id: { Args: { _user_id: string }; Returns: string }
@@ -4936,6 +5297,16 @@ export type Database = {
           total_sessions: number
         }[]
       }
+      lookup_promo_code: {
+        Args: {
+          _attempt_key: string
+          _code: string
+          _email?: string
+          _hotel_id: string
+          _phone?: string
+        }
+        Returns: Json
+      }
       mark_checkout_intent_converted: {
         Args: { _booking_id: string; _intent_id: string }
         Returns: undefined
@@ -4953,9 +5324,28 @@ export type Database = {
         Args: { _org: string }
         Returns: boolean
       }
+      promo_customer_usage_count: {
+        Args: {
+          _email: string
+          _org_id: string
+          _phone: string
+          _promo_code_id: string
+        }
+        Returns: number
+      }
       reactivate_prereservation: {
         Args: { _booking_id: string }
         Returns: boolean
+      }
+      redeem_promo_code: {
+        Args: {
+          _booking_id: string
+          _customer_id: string
+          _discount_cents: number
+          _hotel_id: string
+          _promo_code_id: string
+        }
+        Returns: Json
       }
       reschedule_booking_public: {
         Args: { p_new_date: string; p_new_time: string; p_token: string }

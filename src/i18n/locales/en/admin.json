@@ -98,7 +98,8 @@
     "create": "Create",
     "logoutError": "Could not log out",
     "logoutSuccess": "Logged out",
-    "logoutFarewell": "See you soon!"
+    "logoutFarewell": "See you soon!",
+    "promoCodes": "Promo codes"
   },
   "dashboard": {
     "title": "Home",
@@ -570,7 +571,8 @@
     "actions": "Actions",
     "confirmDelete": "Are you sure you want to delete?",
     "yes": "Yes",
-    "no": "No"
+    "no": "No",
+    "close": "Close"
   },
   "venue": {
     "completeness": {
@@ -1129,7 +1131,34 @@
       "addAttachment": "Add an image",
       "attachmentHint": "You can also paste a screenshot (Cmd/Ctrl+V).",
       "attachmentImageOnly": "The file must be an image",
-      "attachmentTooLarge": "The image must not exceed {{size}} MB"
+      "attachmentTooLarge": "The image must not exceed {{size}} MB",
+      "channel": "Channel",
+      "noChannel": "Not specified",
+      "feedbackType": "Expected feedback",
+      "noFeedbackType": "Not specified",
+      "clientType": "Client type",
+      "noClientType": "Not specified",
+      "treatmentDate": "Treatment date",
+      "prospect": "Prospect details",
+      "prospectHint": "Fill this in when the client has no record yet. The record is created when the task is converted into a booking.",
+      "prospectFirstName": "First name",
+      "prospectLastName": "Last name",
+      "prospectEmail": "Email",
+      "prospectPhone": "Phone",
+      "analyze": "Analyse",
+      "bookingRequiredHint": "The booking automatically fills in the venue, treatments, therapists and client.",
+      "clearValue": "— Clear —",
+      "noAssignee": "Unassigned",
+      "noDueDate": "No due date",
+      "noDescription": "Add a description…",
+      "noTreatmentDate": "No treatment date",
+      "context": "Context",
+      "details": "Details",
+      "edit": "Edit",
+      "backToRead": "Done",
+      "descriptionOrPastePlaceholder": "Describe the task, or paste the request you received then click Analyse",
+      "linkBooking": "Link a booking",
+      "linkCustomer": "Link a client"
     },
     "dueDatePresets": {
       "today": "Today",
@@ -1146,13 +1175,79 @@
       "gift_followup": "Gift follow-up",
       "loyalty": "Loyalty / package",
       "bug": "Bug",
-      "other": "Other"
+      "other": "Other",
+      "inbound_request": "Inbound request"
     },
     "customerTab": {
       "label": "Tasks",
       "count_one": "{{count}} task linked to this customer",
       "count_other": "{{count}} tasks linked to this customer",
       "empty": "No task linked to this customer."
+    },
+    "channel": {
+      "website": "Website",
+      "email": "Email",
+      "phone": "Phone",
+      "whatsapp": "WhatsApp",
+      "instagram": "Instagram",
+      "walk_in": "Walk-in",
+      "partner": "Partner",
+      "other": "Other"
+    },
+    "feedbackType": {
+      "validation_received": "Validation received",
+      "issue_reported": "Issue reported",
+      "change_requested": "Change requested",
+      "awaiting_client": "Awaiting client reply",
+      "awaiting_partner": "Awaiting partner reply",
+      "need_more_info": "More information needed",
+      "internal_feedback": "Internal team feedback",
+      "awaiting_payment": "Awaiting payment"
+    },
+    "convertToBooking": "Convert to booking",
+    "alreadyConverted": "View booking",
+    "convertSuccess": "Booking #{{number}} created and task closed",
+    "convertLinkError": "Booking #{{number}} created, but the task could not be updated",
+    "comments": {
+      "title": "Comments",
+      "empty": "No comments yet.",
+      "placeholder": "Write a comment… type @ to mention someone",
+      "replyPlaceholder": "Write a reply…",
+      "hint": "@ to mention · ⌘/Ctrl + Enter to send",
+      "submit": "Comment",
+      "reply": "Reply",
+      "edit": "Edit",
+      "save": "Save",
+      "cancel": "Cancel",
+      "delete": "Delete",
+      "edited": "edited",
+      "unknownAuthor": "Deleted user",
+      "count": "{{count}} comment",
+      "count_other": "{{count}} comments",
+      "deleteTitle": "Delete this comment?",
+      "deleteConfirm": "This cannot be undone.",
+      "deleteRootConfirm": "Replies to this comment will be deleted too. This cannot be undone.",
+      "addError": "Could not add the comment",
+      "updateError": "Could not edit the comment",
+      "deleteError": "Could not delete the comment"
+    },
+    "messages": {
+      "title": "Conversation",
+      "confidence": "Confidence: {{value}}",
+      "analyzeSuccess": "Fields pre-filled from the text",
+      "analyzeFailed": "Could not analyse this text",
+      "analyzeHint": "Extracted fields are suggestions, not decisions — review them before saving.",
+      "dateFallback": "Analysed — {{rejected}} fully booked, {{kept}} selected instead",
+      "dateNoneAvailable": "Analysed — no availability on the requested dates ({{rejected}})"
+    },
+    "addFilter": "Filter",
+    "removeFilter": "Remove {{filter}} filter",
+    "filterAll": "All",
+    "groupByLabel": "View",
+    "groupBy": {
+      "status": "By status",
+      "priority": "By priority",
+      "task_type": "By type"
     }
   },
   "scheduleAlerts": {
@@ -1476,6 +1571,7 @@
     "create": "Create a gift card",
     "print": "Print",
     "selfPurchase": "For themselves",
+    "searchSales": "Search by buyer, recipient or code...",
     "sessionsValue": "{{count}} sessions",
     "tabs": {
       "templates": "Templates",
@@ -1515,7 +1611,8 @@
     "empty": {
       "templates": "No gift card configured",
       "templatesHint": "Click Create a gift card to get started.",
-      "sales": "No gift card sold yet"
+      "sales": "No gift card sold yet",
+      "salesSearch": "No gift card matches"
     },
     "dialog": {
       "createTitle": "New gift card",
@@ -2167,7 +2264,8 @@
     "tabs": {
       "active": "Active",
       "archived": "Archived"
-    }
+    },
+    "openTask": "View task"
   },
   "checkoutIntents": {
     "title": "Abandoned carts",
@@ -2177,8 +2275,8 @@
     "noIntentsDescription": "Try adjusting your filters",
     "neverReminded": "Never",
     "itemName": "carts",
-    "cartSummary": "{{count}} treatment",
-    "cartSummary_plural": "{{count}} treatments",
+    "cartSummary_one": "{{count}} treatment",
+    "cartSummary_other": "{{count}} treatments",
     "columns": {
       "client": "Guest",
       "email": "Email",
@@ -2204,11 +2302,11 @@
       "conversionRate": "Conversion rate",
       "conversionHint": "{{converted}} bookings out of {{total}} carts",
       "abandonedValue": "Recoverable value",
-      "abandonedValueHint": "across {{count}} abandoned cart",
-      "abandonedValueHint_plural": "across {{count}} abandoned carts",
+      "abandonedValueHint_one": "across {{count}} abandoned cart",
+      "abandonedValueHint_other": "across {{count}} abandoned carts",
       "reminded": "Reminders sent",
-      "remindedHint": "{{count}} cart awaiting a reminder",
-      "remindedHint_plural": "{{count}} carts awaiting a reminder"
+      "remindedHint_one": "{{count}} cart awaiting a reminder",
+      "remindedHint_other": "{{count}} carts awaiting a reminder"
     },
     "actions": {
       "previewEmail": "Preview reminder",
@@ -2223,8 +2321,8 @@
       "total": "Total",
       "onRequest": "On request",
       "quantity": "×{{count}}",
-      "guests": "{{count}} guest",
-      "guests_plural": "{{count}} guests"
+      "guests_one": "{{count}} guest",
+      "guests_other": "{{count}} guests"
     }
   },
   "therapistTreatments": {
@@ -2440,7 +2538,9 @@
       "error": "Could not deactivate the payment link."
     },
     "requestSignature": "Request signature",
-    "actions": "Actions"
+    "actions": "Actions",
+    "promoLine": "Promo code ({{code}})",
+    "promoLineNoCode": "Promo code"
   },
   "finance": {
     "closure": {
@@ -2900,6 +3000,79 @@
     "empty": "No treatment room found",
     "emptyHint": "Try adjusting your filters",
     "addRoom": "Add a room"
+  },
+  "promoCodesPage": {
+    "title": "Promo codes",
+    "new": "New code",
+    "create": "Create",
+    "addCode": "Create a promo code",
+    "itemName": "promo codes",
+    "search": "Search for a code…",
+    "allStatuses": "All statuses",
+    "active": "Active",
+    "inactive": "Inactive",
+    "expired": "Expired",
+    "exhausted": "Used up",
+    "allVenues": "All venues",
+    "allVenuesShort": "All venues",
+    "allOrgVenues": "All venues in my organisation",
+    "allTreatments": "All treatments",
+    "nTreatments": "{{count}} treatment",
+    "nTreatments_other": "{{count}} treatments",
+    "alwaysValid": "No date limit",
+    "colCode": "Code",
+    "colDiscountType": "Discount",
+    "colTreatments": "Treatments",
+    "colVenue": "Venue",
+    "colValidity": "Validity",
+    "colRedemptions": "Uses",
+    "colTotalDiscount": "Total discounted",
+    "empty": "No promo codes",
+    "emptyHint": "No code matches your search.",
+    "createTitle": "New promo code",
+    "editTitle": "Edit promo code",
+    "dialogSubtitle": "The discount applies to treatments booked from the client booking site.",
+    "fieldCode": "Code",
+    "fieldCodeHint": "Entered by the guest. Dashes and spaces are ignored.",
+    "fieldType": "Discount type",
+    "typePercentage": "Percentage",
+    "typeFixed": "Fixed amount",
+    "fieldValuePercent": "Percentage (%)",
+    "fieldValueAmount": "Amount (€)",
+    "fieldVenue": "Venue",
+    "fieldTreatments": "Eligible treatments",
+    "fieldTreatmentsHint": "Leave empty to discount the whole cart.",
+    "fieldValidFrom": "Valid from",
+    "fieldValidUntil": "Valid until",
+    "fieldMaxRedemptions": "Maximum number of uses",
+    "fieldMaxRedemptionsHint": "Leave empty for unlimited use.",
+    "unlimited": "Unlimited",
+    "fieldActive": "Active code",
+    "fieldActiveHint": "An inactive code is rejected on entry.",
+    "created": "Promo code created",
+    "updated": "Promo code updated",
+    "deleted": "Promo code deleted",
+    "deleteError": "Deletion failed",
+    "confirmDeleteTitle": "Delete this promo code?",
+    "confirmDeleteDesc": "The code can no longer be used. Bookings that already used it are kept.",
+    "errorCodeTooShort": "The code must be at least 3 characters.",
+    "errorValuePositive": "The discount must be greater than 0.",
+    "errorPercentMax": "A percentage cannot exceed 100.",
+    "errorDateOrder": "The end date must come after the start date.",
+    "errorDuplicateCode": "This code already exists in your organisation.",
+    "errorNoOrganization": "Pick a venue: it determines the code's organisation.",
+    "redemptionsTitle": "Uses of code {{code}}",
+    "redemptionsSubtitle": "Bookings that received this discount.",
+    "colBooking": "Booking",
+    "colClient": "Guest",
+    "colDate": "Date",
+    "colDiscount": "Discount",
+    "noRedemption": "This code has not been used yet",
+    "pickVenue": "Pick a venue…",
+    "pickVenueHint": "In the all-organisations view, the venue determines the code's organisation.",
+    "fieldMaxPerCustomer": "Maximum uses per guest",
+    "fieldMaxPerCustomerHint": "Leave empty for no limit. A guest is recognised by phone or email.",
+    "perCustomer": "{{count}}/guest"
   },
   "organizationDetail": {
     "notFound": "Organisation not found",
@@ -4255,6 +4428,9 @@
     "allTherapists": "All therapists",
     "searchTherapist": "Search a therapist...",
     "noTherapistFound": "No therapist found.",
+    "allTreatments": "All treatments",
+    "searchTreatment": "Search a treatment...",
+    "noTreatmentFound": "No treatment found.",
     "lastDays": "Last {{count}} days",
     "customPeriod": "Custom period",
     "selectPeriod": "Select a period",
@@ -4268,6 +4444,7 @@
       "hotel": "Venue",
       "status": "Status",
       "therapist": "Therapist",
+      "treatment": "Treatment",
       "period": "Period",
       "payment": "Payment method",
       "paymentStatus": "Payment status"

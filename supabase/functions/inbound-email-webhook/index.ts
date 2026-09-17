@@ -1,4 +1,4 @@
-// Resend Inbound webhook → email_inquiries.
+// Resend Inbound webhook → channel_messages.
 //
 // Phase 1 (MVP):
 //  1. Verify HMAC signature (svix-style headers used by Resend Inbound).
@@ -6,7 +6,7 @@
 //  3. Fetch the full message body from Resend's Received Emails API (the
 //     webhook only contains metadata).
 //  4. Ask Claude Haiku to extract structured booking intent.
-//  5. Persist an `email_inquiries` row. Admins triage it manually from
+//  5. Persist an `channel_messages` row. Admins triage it manually from
 //     /admin/inbox. Auto-conversion comes in Phase 2.
 //
 // `verify_jwt = false`: this endpoint is public, secured by the Resend
@@ -14,8 +14,13 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
-import type { TreatmentRef, TreatmentVariantRef, ParsedEmail } from "../llm-agent/actions/parseEmail.ts";
-import { fetchPublicTreatments } from "../_shared/publicTreatments.ts";
+import type { TreatmentRef, ParsedEmail } from "../llm-agent/actions/parseEmail.ts";
+import { loadTreatmentRefs } from "../_shared/treatmentRefs.ts";
+import {
+  buildInboundTaskColumns,
+  INBOUND_TASK_INTENT_THRESHOLD,
+} from "../_shared/inboundTask.ts";
+import { resolveRequestedDate } from "../_shared/requestedDate.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -205,26 +210,7 @@ async function loadVenueAndTreatments(toAddress: string): Promise<{
     return { hotelId: null, venueName: null, treatments: [] };
   }
 
-  // get_public_treatments merges the add-on flag (treatment + category) and returns
-  // the variants in one call — see _shared/publicTreatments.ts.
-  const treatments: TreatmentRef[] = (await fetchPublicTreatments(supabaseAdmin, venue.id as string))
-    .map(t => ({
-      id: t.id,
-      name: t.name,
-      name_en: t.name_en,
-      duration: t.duration,
-      category: t.category,
-      is_addon: t.is_addon,
-      variants: t.variants.map((v): TreatmentVariantRef => ({
-        id: v.id,
-        treatment_id: t.id,
-        label: v.label,
-        label_en: v.label_en,
-        duration: v.duration,
-        guest_count: v.guest_count,
-        is_default: v.is_default,
-      })),
-    }));
+  const treatments: TreatmentRef[] = await loadTreatmentRefs(supabaseAdmin, venue.id as string);
 
   return { hotelId: venue.id as string, venueName: (venue.name as string | null) ?? null, treatments };
 }
@@ -276,22 +262,22 @@ const handler = async (req: Request): Promise<Response> => {
   // Always insert an inquiry — even orphan ones — for audit + debugging.
   const insertPayload = {
     hotel_id: hotelId,
-    from_address: fromAddress,
-    to_address: toAddress,
+    from_identifier: fromAddress,
+    to_identifier: toAddress,
     subject,
     raw_payload: payload as unknown as Record<string, unknown>,
     status: "received",
-    message_id: messageId,
+    external_message_id: messageId,
   };
 
   const { data: inquiry, error: insertError } = await supabaseAdmin
-    .from("email_inquiries")
+    .from("channel_messages")
     .insert(insertPayload)
     .select("id")
     .single();
 
   if (insertError || !inquiry) {
-    console.error("Failed to insert email_inquiry:", insertError);
+    console.error("Failed to insert channel message:", insertError);
     return new Response(JSON.stringify({ error: "DB insert failed" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -301,7 +287,7 @@ const handler = async (req: Request): Promise<Response> => {
   if (!hotelId) {
     // Orphan: unknown alias or unconfigured domain. Keep it for review.
     await supabaseAdmin
-      .from("email_inquiries")
+      .from("channel_messages")
       .update({ status: "failed", error_message: "Unknown venue alias or unconfigured domain" })
       .eq("id", inquiry.id);
     return new Response(JSON.stringify({ ok: true, inquiry_id: inquiry.id, venue: null }), {
@@ -323,7 +309,7 @@ const handler = async (req: Request): Promise<Response> => {
 
   // Persist the raw bodies before parsing so they're available even if the LLM fails.
   await supabaseAdmin
-    .from("email_inquiries")
+    .from("channel_messages")
     .update({ raw_body_text: bodyText, raw_body_html: bodyHtml })
     .eq("id", inquiry.id);
 
@@ -345,7 +331,7 @@ const handler = async (req: Request): Promise<Response> => {
 
   if (parseError || !parsed) {
     await supabaseAdmin
-      .from("email_inquiries")
+      .from("channel_messages")
       .update({ status: "failed", error_message: parseError ?? "Parse returned null" })
       .eq("id", inquiry.id);
 
@@ -355,8 +341,20 @@ const handler = async (req: Request): Promise<Response> => {
     });
   }
 
+  // Plusieurs dates proposées : on retient la première réellement ouvrable,
+  // pour que la tâche créée porte une date exploitable.
+  if (hotelId && parsed.requested_dates.length > 1) {
+    const resolution = await resolveRequestedDate(supabaseAdmin, {
+      hotelId,
+      dates: parsed.requested_dates,
+      treatmentIds: parsed.treatment_match?.id ? [parsed.treatment_match.id] : [],
+      guestCount: parsed.guest_count,
+    });
+    if (resolution.date) parsed.requested_date = resolution.date;
+  }
+
   await supabaseAdmin
-    .from("email_inquiries")
+    .from("channel_messages")
     .update({
       status: "parsed",
       parsed_data: parsed as unknown as Record<string, unknown>,
@@ -364,10 +362,99 @@ const handler = async (req: Request): Promise<Response> => {
     })
     .eq("id", inquiry.id);
 
-  return new Response(JSON.stringify({ ok: true, inquiry_id: inquiry.id, parsed: true }), {
-    status: 200,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
+  const taskId = await attachToTask(inquiry.id, hotelId, subject, bodyText, parsed);
+
+  return new Response(
+    JSON.stringify({ ok: true, inquiry_id: inquiry.id, parsed: true, task_id: taskId }),
+    { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+  );
 };
+
+/**
+ * Rattache le message à une tâche : le fil de traitement vit sur `tasks`,
+ * pas sur le message.
+ *
+ * Trois cas :
+ *  - réponse dans un fil déjà suivi → on hérite du `task_id` de la racine,
+ *    pour ne pas ouvrir une seconde tâche sur la même conversation ;
+ *  - demande reconnue (intention au-dessus du seuil) → on ouvre une tâche ;
+ *  - reste (spam, réponse automatique, message sans intention) → rien, le
+ *    message reste consultable dans la boîte.
+ *
+ * Un échec ici n'interrompt jamais le traitement du message : le webhook doit
+ * rester vert même si le pipeline de travail est indisponible.
+ */
+async function attachToTask(
+  messageId: string,
+  hotelId: string,
+  subject: string | null,
+  bodyText: string | null,
+  parsed: ParsedEmail,
+): Promise<string | null> {
+  try {
+    const { data: message } = await supabaseAdmin
+      .from("channel_messages")
+      .select("parent_message_id")
+      .eq("id", messageId)
+      .maybeSingle();
+
+    const parentId = (message?.parent_message_id as string | null) ?? null;
+    if (parentId) {
+      const { data: parent } = await supabaseAdmin
+        .from("channel_messages")
+        .select("task_id")
+        .eq("id", parentId)
+        .maybeSingle();
+      const inheritedTaskId = (parent?.task_id as string | null) ?? null;
+      if (inheritedTaskId) {
+        await supabaseAdmin
+          .from("channel_messages")
+          .update({ task_id: inheritedTaskId })
+          .eq("id", messageId);
+        return inheritedTaskId;
+      }
+    }
+
+    if ((parsed.intent_confidence ?? 0) < INBOUND_TASK_INTENT_THRESHOLD) return null;
+
+    // `tasks.organization_id` est NOT NULL alors que `channel_messages` ne
+    // porte pas l'organisation : on la résout depuis le lieu.
+    const { data: organizationId, error: orgError } = await supabaseAdmin.rpc(
+      "get_hotel_org_id",
+      { _hotel_id: hotelId },
+    );
+    if (orgError || !organizationId) {
+      console.warn(`No organization for hotel ${hotelId}, skipping task creation`);
+      return null;
+    }
+
+    const { data: task, error: taskError } = await supabaseAdmin
+      .from("tasks")
+      .insert(
+        buildInboundTaskColumns({
+          organizationId: organizationId as string,
+          hotelId,
+          subject,
+          bodyText,
+          parsed,
+        }),
+      )
+      .select("id")
+      .single();
+    if (taskError || !task) {
+      console.error("Failed to create inbound task:", taskError);
+      return null;
+    }
+
+    await supabaseAdmin
+      .from("channel_messages")
+      .update({ task_id: task.id })
+      .eq("id", messageId);
+    return task.id as string;
+  } catch (error) {
+    console.error("attachToTask failed:", error);
+    return null;
+  }
+}
 
 serve(handler);

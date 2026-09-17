@@ -1,6 +1,25 @@
 import type { LucideIcon } from "lucide-react";
-import { SignalLow, SignalMedium, SignalHigh, Flame } from "lucide-react";
-import type { TaskStatus, TaskPriority, TaskType } from "@/hooks/tasks/useTasks";
+import {
+  SignalLow,
+  SignalMedium,
+  SignalHigh,
+  Flame,
+  Globe,
+  Mail,
+  Phone,
+  MessageCircle,
+  Instagram,
+  DoorOpen,
+  Handshake,
+  MoreHorizontal,
+} from "lucide-react";
+import type {
+  TaskStatus,
+  TaskPriority,
+  TaskType,
+  TaskChannel,
+  TaskFeedbackType,
+} from "@/hooks/tasks/useTasks";
 
 // Visual metadata for statuses & priorities. Human labels live in i18n
 // (namespace `admin`, keys tasks.status.* / tasks.priority.*).
@@ -55,6 +74,7 @@ export const STATUS_META: Record<TaskStatus, { badgeClass: string; dotClass: str
 export const PRIORITY_ORDER: TaskPriority[] = ["low", "medium", "high", "urgent"];
 
 export const TASK_TYPE_ORDER: TaskType[] = [
+  "inbound_request",
   "booking_followup",
   "payment_followup",
   "gift_followup",
@@ -63,10 +83,20 @@ export const TASK_TYPE_ORDER: TaskType[] = [
   "other",
 ];
 
+/**
+ * Types de tâche qui n'ont aucun sens sans réservation : le lien est alors
+ * exigé, et remonté juste après le choix du type puisque c'est lui qui
+ * alimente le reste du formulaire (lieu, soins, thérapeutes, date, client).
+ */
+export const TASK_TYPES_REQUIRING_BOOKING: TaskType[] = ["booking_followup"];
+
 // Couleurs du type de tâche. Volontairement utilisées dans le seul champ de
 // saisie du formulaire : les cartes du board restent lisibles avec la priorité
 // pour unique code couleur.
 export const TASK_TYPE_META: Record<TaskType, { badgeClass: string }> = {
+  inbound_request: {
+    badgeClass: "bg-amber-100 text-amber-700 border-transparent dark:bg-amber-950 dark:text-amber-300",
+  },
   booking_followup: {
     badgeClass: "bg-sky-100 text-sky-700 border-transparent dark:bg-sky-950 dark:text-sky-300",
   },
@@ -97,3 +127,41 @@ export const PRIORITY_WEIGHT: Record<TaskPriority, number> = {
   medium: 1,
   low: 0,
 };
+
+// Canal et type de retour attendu ne portent pas de couleur : la priorité reste
+// le seul code couleur fort de la carte. Les libellés vivent en i18n
+// (tasks.channel.* / tasks.feedbackType.*).
+export const TASK_CHANNEL_ORDER: TaskChannel[] = [
+  "website",
+  "email",
+  "phone",
+  "whatsapp",
+  "instagram",
+  "walk_in",
+  "partner",
+  "other",
+];
+
+/** Icône de chaque canal : le pictogramme se lit plus vite que le mot, dans le
+ *  sélecteur comme sur la carte. */
+export const TASK_CHANNEL_META: Record<TaskChannel, { icon: LucideIcon }> = {
+  website: { icon: Globe },
+  email: { icon: Mail },
+  phone: { icon: Phone },
+  whatsapp: { icon: MessageCircle },
+  instagram: { icon: Instagram },
+  walk_in: { icon: DoorOpen },
+  partner: { icon: Handshake },
+  other: { icon: MoreHorizontal },
+};
+
+export const TASK_FEEDBACK_TYPE_ORDER: TaskFeedbackType[] = [
+  "validation_received",
+  "issue_reported",
+  "change_requested",
+  "awaiting_client",
+  "awaiting_partner",
+  "need_more_info",
+  "internal_feedback",
+  "awaiting_payment",
+];

@@ -12,6 +12,7 @@ import { useOrganizationsList } from "@/hooks/useOrganizationsList";
 import { ViewModeSwitcher } from "@/components/admin/ViewModeSwitcher";
 import { useViewMode } from "@/contexts/ViewModeContext";
 import {
+  BadgePercent,
   LayoutDashboard,
   CalendarDays,
   ListChecks,
@@ -95,6 +96,7 @@ const adminPrimaryItems: MenuItem[] = [
 
 const adminSecondaryItems: MenuItem[] = [
   { title: "Salles de soin", titleKey: "sidebar.treatmentRooms", url: "/admin/treatment-rooms", icon: DoorOpen },
+  { title: "Codes promo", titleKey: "sidebar.promoCodes", url: "/admin/promo-codes", icon: BadgePercent },
   { title: "Gestion du lieu", titleKey: "sidebar.concierges", url: "/admin/concierges", icon: UserCog },
   { title: "Produits", titleKey: "sidebar.productsPlain", url: "/admin/products", icon: Package, soon: true },
   { title: "Commandes", titleKey: "sidebar.orders", url: "/admin/orders", icon: Truck, soon: true },

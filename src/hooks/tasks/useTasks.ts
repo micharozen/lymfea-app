@@ -13,7 +13,31 @@ export type TaskType =
   | "gift_followup"
   | "loyalty"
   | "bug"
+  | "inbound_request"
   | "other";
+
+/** Canal par lequel la demande est arrivée. Distinct de bookings.source, qui
+ *  décrit qui a saisi la réservation — voir channelToBookingSource(). */
+export type TaskChannel =
+  | "website"
+  | "email"
+  | "phone"
+  | "whatsapp"
+  | "instagram"
+  | "walk_in"
+  | "partner"
+  | "other";
+
+/** Type de retour attendu, repris du flux Asana qu'Eïa remplace. */
+export type TaskFeedbackType =
+  | "validation_received"
+  | "issue_reported"
+  | "change_requested"
+  | "awaiting_client"
+  | "awaiting_partner"
+  | "need_more_info"
+  | "internal_feedback"
+  | "awaiting_payment";
 
 export const TASK_STATUSES: TaskStatus[] = ["todo", "in_progress", "done"];
 export const TASK_PRIORITIES: TaskPriority[] = ["low", "medium", "high", "urgent"];

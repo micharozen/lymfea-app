@@ -50,6 +50,14 @@ export const treatmentKeys = {
   forOrg: (scope: ScopeLike) => [...treatmentKeys.all, "org", orgKey(scope)] as const,
   list: (scope: ScopeLike) => [...treatmentKeys.forOrg(scope), "list"] as const,
   forHotel: (hotelId: string) => [...treatmentKeys.all, "hotel", hotelId] as const,
+  names: (scope: ScopeLike) => [...treatmentKeys.forOrg(scope), "names"] as const,
+};
+
+export const promoCodeKeys = {
+  all: ["promo-codes"] as const,
+  forOrg: (scope: ScopeLike) => [...promoCodeKeys.all, "org", orgKey(scope)] as const,
+  list: (scope: ScopeLike) => [...promoCodeKeys.forOrg(scope), "list"] as const,
+  redemptions: (promoCodeId: string) => [...promoCodeKeys.all, "redemptions", promoCodeId] as const,
 };
 
 export const treatmentRoomKeys = {
@@ -72,6 +80,13 @@ export const taskKeys = {
   list: (scope: ScopeLike) => [...taskKeys.forOrg(scope), "list"] as const,
   detail: (scope: ScopeLike, id: string) =>
     [...taskKeys.forOrg(scope), "detail", id] as const,
+};
+
+// Le fil d'une tâche n'est jamais listé hors de son détail : la clé porte
+// l'id de la tâche, sans scope d'organisation (la RLS cloisonne déjà).
+export const taskCommentKeys = {
+  all: ["task-comments"] as const,
+  forTask: (taskId: string) => [...taskCommentKeys.all, taskId] as const,
 };
 
 export const adminKeys = {

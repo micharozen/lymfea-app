@@ -1,67 +1,96 @@
+import { useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion, useScroll, useSpring } from "framer-motion";
 
-const STEPS = ["step1", "step2", "step3"] as const;
+const EASE = [0.16, 1, 0.3, 1] as const;
+
+const STEPS = ["scoping", "migration", "training", "launch"] as const;
+const LANES = ["ours", "yours"] as const;
 
 export const HowItWorks = () => {
   const { t } = useTranslation("landing");
+  const reduce = useReducedMotion();
+  const railRef = useRef<HTMLOListElement>(null);
+
+  // Le trait doré se remplit au rythme du scroll : c'est l'avancement du
+  // déploiement, pas une décoration.
+  const { scrollYProgress } = useScroll({
+    target: railRef,
+    offset: ["start 80%", "end 75%"],
+  });
+  const progress = useSpring(scrollYProgress, { stiffness: 80, damping: 26, restDelta: 0.001 });
 
   return (
     <section id="how-it-works" className="border-y border-border/60 bg-gold-50/50 py-24 md:py-32">
       <div className="container mx-auto px-4 md:px-6">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
+        <motion.h2
+          initial={reduce ? false : { opacity: 0, y: 16 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-100px" }}
-          transition={{ duration: 0.6 }}
-          className="mx-auto max-w-2xl text-center"
+          viewport={{ once: true, amount: 0.4 }}
+          transition={{ duration: 0.7, ease: EASE }}
+          className="max-w-2xl font-serif text-3xl leading-[1.1] tracking-tight text-foreground md:text-5xl"
         >
-          <span className="text-xs font-medium uppercase tracking-[0.2em] text-primary">
-            {t("howItWorks.eyebrow")}
-          </span>
-          <h2 className="mt-3 font-serif text-3xl tracking-tight text-foreground md:text-5xl">
-            {t("howItWorks.title")}
-          </h2>
-          <p className="mt-4 text-lg text-muted-foreground md:text-xl">
-            {t("howItWorks.subtitle")}
-          </p>
-        </motion.div>
+          {t("howItWorks.title")}
+        </motion.h2>
 
-        <div className="relative mt-16">
-          {/* Animated connecting line (desktop only) */}
-          <motion.div
-            initial={{ scaleX: 0 }}
-            whileInView={{ scaleX: 1 }}
-            viewport={{ once: true, margin: "-80px" }}
-            transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1], delay: 0.3 }}
-            style={{ transformOrigin: "left" }}
-            className="absolute left-[15%] right-[15%] top-10 hidden h-px bg-gradient-to-r from-transparent via-gold-400 to-transparent md:block"
-          />
-
-          <div className="relative grid gap-8 md:grid-cols-3 md:gap-10">
-            {STEPS.map((step, i) => (
+        <div className="mt-12 grid gap-10 md:mt-14 lg:grid-cols-12 lg:gap-14">
+          {/* Le calendrier : quatre repères, rien de plus. */}
+          <ol ref={railRef} className="relative lg:col-span-5">
+            <div aria-hidden className="absolute bottom-2 left-[7px] top-2 w-px bg-border">
               <motion.div
+                style={{ scaleY: reduce ? 1 : progress }}
+                className="h-full w-full origin-top bg-gold-500"
+              />
+            </div>
+
+            {STEPS.map((step, i) => (
+              <motion.li
                 key={step}
-                initial={{ opacity: 0, y: 20 }}
+                initial={reduce ? false : { opacity: 0, y: 10 }}
                 whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: "-60px" }}
-                transition={{ duration: 0.5, delay: i * 0.15 }}
-                className="relative flex flex-col items-start text-left md:items-center md:text-center"
+                viewport={{ once: true, amount: 0.6 }}
+                transition={{ duration: 0.5, ease: EASE, delay: i * 0.08 }}
+                className="relative pb-8 pl-8 last:pb-0"
               >
-                <div className="relative flex h-20 w-20 items-center justify-center rounded-full border border-gold-300 bg-card shadow-sm">
-                  <span className="font-serif text-2xl text-primary">
-                    {t(`howItWorks.${step}.number`)}
+                <span
+                  aria-hidden
+                  className="absolute left-0 top-1.5 flex h-[15px] w-[15px] items-center justify-center rounded-full border border-gold-500 bg-card"
+                >
+                  <span className="h-[5px] w-[5px] rounded-full bg-gold-500" />
+                </span>
+                {/* Le repère et l'étape tiennent sur une ligne : quatre libellés
+                    en petites capitales au-dessus de quatre titres faisaient
+                    quatre fois le même effet. */}
+                <h3 className="font-serif text-xl text-foreground md:text-2xl">
+                  <span className="text-gold-600">{t(`howItWorks.steps.${step}.when`)}</span>
+                  <span aria-hidden className="text-muted-foreground/40">
+                    {" · "}
                   </span>
-                </div>
-                <h3 className="mt-6 font-serif text-2xl text-foreground">
-                  {t(`howItWorks.${step}.title`)}
+                  {t(`howItWorks.steps.${step}.title`)}
                 </h3>
-                <p className="mt-3 max-w-xs text-sm leading-relaxed text-muted-foreground">
-                  {t(`howItWorks.${step}.desc`)}
-                </p>
-              </motion.div>
+              </motion.li>
             ))}
-          </div>
+          </ol>
+
+          {/* Le partage des tâches : une ligne de chaque côté. */}
+          <motion.div
+            initial={reduce ? false : { opacity: 0, y: 14 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.3 }}
+            transition={{ duration: 0.6, ease: EASE, delay: 0.1 }}
+            className="grid content-start gap-8 lg:col-span-7"
+          >
+            {LANES.map((lane) => (
+              <div key={lane} className="border-t border-gold-300 pt-5">
+                <p className="font-serif text-lg text-foreground md:text-xl">
+                  {t(`howItWorks.lanes.${lane}.title`)}
+                </p>
+                <p className="mt-2.5 max-w-xl text-sm leading-relaxed text-muted-foreground md:text-base">
+                  {t(`howItWorks.lanes.${lane}.line`)}
+                </p>
+              </div>
+            ))}
+          </motion.div>
         </div>
       </div>
     </section>
