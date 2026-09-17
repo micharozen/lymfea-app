@@ -20,30 +20,18 @@ import { join, extname, resolve, dirname } from "node:path";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
+import { MARKETING_ROUTES } from "./marketing-routes.mjs";
+
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const DIST_DIR = resolve(__dirname, "..", "dist");
 const LANDING_FILE = join(DIST_DIR, "landing.html");
 const PORT = 4173;
 
-// Marketing routes to prerender into static HTML. Each renders the landing SPA
-// shell (landing.html → landing-main.tsx), lets React Router resolve the route,
-// then snapshots the DOM into its own file. Keep the comparison slugs in sync
-// with COMPETITORS in src/components/landing/compare/competitors.ts.
+// Each route renders the landing SPA shell (landing.html → landing-main.tsx),
+// lets React Router resolve it, then snapshots the DOM into its own file.
 // NOTE: production hosting must serve these files at their paths (like `/` →
 // landing.html). Without that routing, crawlers fall back to the SPA shell.
-const COMPARE_SLUGS = ["book4time", "mindbody", "booker", "zenoti", "fresha", "treatwell"];
-const ROUTES = [
-  { path: "/", out: "landing.html" },
-  { path: "/compare", out: "compare.html" },
-  ...COMPARE_SLUGS.map((slug) => ({
-    path: `/compare/saoma-vs-${slug}`,
-    out: `compare/saoma-vs-${slug}.html`,
-  })),
-  { path: "/changelog", out: "changelog.html" },
-  { path: "/terms", out: "terms.html" },
-  { path: "/privacy", out: "privacy.html" },
-  { path: "/support", out: "support.html" },
-];
+const ROUTES = MARKETING_ROUTES;
 
 const MIME = {
   ".html": "text/html; charset=utf-8",

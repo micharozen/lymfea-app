@@ -1,0 +1,34 @@
+name: SEO smoke test
+
+# Asserts against the *deployed* site, not the repo. A green build says nothing
+# about what production actually serves — the prerenderer was bypassed by the
+# Railway build command for weeks while CI stayed green.
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+    inputs:
+      origin:
+        description: "Origin to check"
+        required: false
+        default: "https://saoma.io"
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Check deployed marketing pages
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Check live SEO
+        run: node scripts/check-live-seo.mjs "${{ github.event.inputs.origin || 'https://saoma.io' }}"
