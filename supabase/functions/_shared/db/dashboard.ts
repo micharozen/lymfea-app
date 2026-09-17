@@ -1,5 +1,6 @@
 import type { OrgScope, TClient, Database } from "./client.ts";
 import { resolveHotelIdsForOrg } from "./scope.ts";
+import type { PaymentInfoEmbed } from "../bookingRevenue.ts";
 
 type BookingRow = Database["public"]["Tables"]["bookings"]["Row"];
 type HotelRow = Database["public"]["Tables"]["hotels"]["Row"];
@@ -41,6 +42,8 @@ export type PeriodBooking = Pick<
   | "source"
 > & {
   booking_treatments: Array<{ treatment_menus: { name: string | null } | null }>;
+  /** Frais retenus sur un no-show — le CA d'un no-show facturé s'y appuie. */
+  booking_payment_infos: PaymentInfoEmbed;
 };
 
 /** Carnet à venir : aujourd'hui inclus, jusqu'à un an. Sans jointure. */
@@ -235,7 +238,7 @@ export function fetchPeriodBookings(
     const q = client
       .from("bookings")
       .select(
-        `id, booking_date, booking_time, total_price, hotel_id, hotel_name, status, payment_status, therapist_id, therapist_name, client_type, source, ${TREATMENTS_JOIN}`,
+        `id, booking_date, booking_time, total_price, hotel_id, hotel_name, status, payment_status, therapist_id, therapist_name, client_type, source, booking_payment_infos ( cancellation_fee_amount ), ${TREATMENTS_JOIN}`,
       )
       .gte("booking_date", window.fromDate)
       .lte("booking_date", window.toDate)

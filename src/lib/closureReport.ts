@@ -9,6 +9,7 @@ import {
 } from "@/lib/therapistEarnings";
 import { isBookingClientType, type BookingClientType } from "@/lib/clientTypeMeta";
 import { splitBookingByTherapist } from "@/lib/closureTherapistSplit";
+import { bookingBilledAmount, countsAsRevenue, isBilledNoShow } from "@/lib/bookingRevenue";
 
 export interface ClosureBookingTreatment {
   name: string;
@@ -43,6 +44,8 @@ export interface ClosureBooking {
   payment_method: string | null;
   payment_status: string | null;
   status: string;
+  /** Frais retenus sur un no-show (`booking_payment_infos`) — voir bookingRevenue. */
+  cancellation_fee_amount?: number | null;
   treatments: ClosureBookingTreatment[];
 }
 
@@ -138,6 +141,10 @@ export interface ClosureStats {
   includedUnfinalized: boolean;
   cancelledBookings: number;
   noShowBookings: number;
+  /** No-show dont la prestation a été facturée : comptés dans le CA. */
+  billedNoShowBookings: number;
+  /** Part du CA portée par ces no-show facturés. */
+  billedNoShowRevenue: number;
   pendingBookings: number;
   totalRevenue: number;
   totalTherapistShare: number;
@@ -271,6 +278,8 @@ export function computeClosureStats(
     includedUnfinalized: includeUnfinalized,
     cancelledBookings: 0,
     noShowBookings: 0,
+    billedNoShowBookings: 0,
+    billedNoShowRevenue: 0,
     pendingBookings: 0,
     totalRevenue: 0,
     totalTherapistShare: 0,
@@ -295,9 +304,10 @@ export function computeClosureStats(
   const venueRate = (venue.hotel_commission ?? 0) / 100;
 
   for (const booking of bookings) {
-    const price = booking.total_price ?? 0;
+    const price = bookingBilledAmount(booking);
     const isUnfinalized = UNFINALIZED_STATUSES.includes(booking.status);
-    const isCounted = booking.status === "completed" || (includeUnfinalized && isUnfinalized);
+    const billedNoShow = isBilledNoShow(booking);
+    const isCounted = countsAsRevenue(booking) || (includeUnfinalized && isUnfinalized);
 
     if (booking.status === "completed") stats.completedBookings += 1;
     else if (booking.status === "confirmed") stats.confirmedBookings += 1;
@@ -306,6 +316,10 @@ export function computeClosureStats(
     else if (booking.status === "pending") stats.pendingBookings += 1;
 
     if (isUnfinalized) stats.unfinalizedRevenue += price;
+    if (billedNoShow) {
+      stats.billedNoShowBookings += 1;
+      stats.billedNoShowRevenue += price;
+    }
 
     bumpBucket(statusMap, booking.status, STATUS_LABELS[booking.status] ?? booking.status, isCounted ? price : 0);
 
@@ -483,6 +497,15 @@ export function renderClosureReportHtml(report: ClosureReport, options: RenderCl
   const completionRate =
     stats.totalBookings > 0 ? (stats.countedBookings / stats.totalBookings) * 100 : 0;
 
+  // Un no-show facturé pèse dans le CA sans correspondre à une prestation
+  // réalisée : la mention évite que le lieu cherche l'écart avec son planning.
+  const billedNoShowLine =
+    stats.billedNoShowBookings > 0
+      ? `<p style="margin:6px 0 0;font-size:13px;color:${INK_SOFT};">
+          dont ${stats.billedNoShowBookings} no show facturé${stats.billedNoShowBookings > 1 ? "s" : ""} (${escapeHtml(money(stats.billedNoShowRevenue))})
+        </p>`
+      : "";
+
   // Bande du jour : un seul chiffre lu en premier, les autres le nuancent.
   // La répartition des commissions n'y figure pas : ce rapport part au lieu.
   const summaryBand = `
@@ -495,6 +518,7 @@ export function renderClosureReportHtml(report: ClosureReport, options: RenderCl
         <p style="margin:8px 0 0;font-size:13px;color:${INK_SOFT};">
           ${stats.countedBookings} prestation${stats.countedBookings > 1 ? "s" : ""} comptée${stats.countedBookings > 1 ? "s" : ""} sur ${stats.totalBookings} réservation${stats.totalBookings > 1 ? "s" : ""}, soit ${escapeHtml(fmtPercent(completionRate))} réalisé${stats.includedUnfinalized ? " ou à venir" : " à date"}
         </p>
+        ${billedNoShowLine}
       </div>
       <div style="display:flex;">
         ${bandStat("Panier moyen", money(averageTicket), false)}

@@ -47,6 +47,29 @@ import {
 } from "@/lib/monthlyOutlook";
 
 export type { MonthlyOutlookPoint, MonthlyOutlookByVenue } from "@/lib/monthlyOutlook";
+import {
+  bookingBilledAmount,
+  isBilledNoShow,
+  isNoShowStatus,
+  noShowFeeFrom,
+  type PaymentInfoEmbed,
+  type RevenueBooking,
+} from "@/lib/bookingRevenue";
+
+/** Réservation telle que la ramène le dashboard, frais de no-show imbriqués. */
+type RevenueRow = {
+  status: string;
+  payment_status?: string | null;
+  total_price?: number | null;
+  booking_payment_infos?: PaymentInfoEmbed;
+};
+
+const toRevenueBooking = (b: RevenueRow): RevenueBooking => ({
+  status: b.status,
+  payment_status: b.payment_status,
+  total_price: b.total_price,
+  cancellation_fee_amount: noShowFeeFrom(b.booking_payment_infos),
+});
 
 // ── Types ───────────────────────────────────────────────────────────
 
@@ -467,9 +490,19 @@ export function useDashboardData(
   const toEUR = (price: number | null, hotelId: string) =>
     convertToEUR(parseFloat(String(price)) || 0, hotelCurrencyMap[hotelId] || "EUR", rates);
 
-  // Cancelled and no-show bookings generate no revenue — exclude from every CA sum.
-  const generatesRevenue = (b: { status: string }) =>
-    b.status !== "cancelled" && b.status !== "noshow";
+  // Les annulations ne facturent rien. Un no-show, lui, ne compte que s'il a
+  // bien été facturé au client (note de chambre, carte capturée, partenaire) —
+  // il est alors du CA au même titre qu'une prestation réalisée, et la facture
+  // thérapeute le rémunère déjà. Voir @/lib/bookingRevenue.
+  const generatesRevenue = (b: RevenueRow) => {
+    const row = toRevenueBooking(b);
+    return b.status !== "cancelled" && (!isNoShowStatus(b.status) || isBilledNoShow(row));
+  };
+
+  // Montant facturé, converti : sur un no-show, les frais retenus priment sur
+  // total_price, qui peut être nul alors que l'empreinte a été capturée.
+  const revenueEUR = (b: RevenueRow & { hotel_id: string }) =>
+    toEUR(bookingBilledAmount(toRevenueBooking(b)), b.hotel_id);
 
   const matchesHotel = (hotelId: string) =>
     selectedHotel === "all" || hotelId === selectedHotel;
@@ -511,7 +544,7 @@ export function useDashboardData(
 
   const stats = useMemo<DashboardStats>(() => {
     const revenueBookings = filteredBookings.filter(generatesRevenue);
-    const totalSales = revenueBookings.reduce((s, b) => s + toEUR(b.total_price, b.hotel_id), 0);
+    const totalSales = revenueBookings.reduce((s, b) => s + revenueEUR(b), 0);
     const totalBookings = filteredBookings.length;
 
     const todayRows = scopedUpcoming.filter((b) => b.booking_date === windows.today);
@@ -539,7 +572,7 @@ export function useDashboardData(
 
     const prevSales = prevFilteredBookings
       .filter(generatesRevenue)
-      .reduce((s, b) => s + toEUR(b.total_price, b.hotel_id), 0);
+      .reduce((s, b) => s + revenueEUR(b), 0);
     const prevCount = prevFilteredBookings.length;
     const salesTrend = prevSales > 0 ? Math.round(((totalSales - prevSales) / prevSales) * 100) : 0;
     const bookingsTrend = prevCount > 0 ? Math.round(((totalBookings - prevCount) / prevCount) * 100) : 0;
@@ -787,7 +820,7 @@ export function useDashboardData(
         });
         return {
           date: `${hour}h`,
-          sales: hourBookings.reduce((s, b) => s + toEUR(b.total_price, b.hotel_id), 0),
+          sales: hourBookings.reduce((s, b) => s + revenueEUR(b), 0),
           prestations: hourBookings.reduce((s, b) => s + prestationCount(b), 0),
         };
       });
@@ -802,7 +835,7 @@ export function useDashboardData(
     }
     revenueBookings.forEach((b) => {
       if (Object.prototype.hasOwnProperty.call(salesByDate, b.booking_date)) {
-        salesByDate[b.booking_date] += toEUR(b.total_price, b.hotel_id);
+        salesByDate[b.booking_date] += revenueEUR(b);
         prestationsByDate[b.booking_date] += prestationCount(b);
       }
     });
@@ -923,7 +956,7 @@ export function useDashboardData(
         const hotel = hotels.find((h) => h.id === b.hotel_id);
         map[b.hotel_id] = { name: hotel?.name || b.hotel_name || "Inconnu", revenue: 0, bookings: 0 };
       }
-      map[b.hotel_id].revenue += toEUR(b.total_price, b.hotel_id);
+      map[b.hotel_id].revenue += revenueEUR(b);
       map[b.hotel_id].bookings += 1;
     });
     return Object.values(map)
@@ -938,7 +971,7 @@ export function useDashboardData(
       if (!map[b.therapist_id]) {
         map[b.therapist_id] = { name: b.therapist_name || "Inconnu", revenue: 0, bookings: 0 };
       }
-      map[b.therapist_id].revenue += toEUR(b.total_price, b.hotel_id);
+      map[b.therapist_id].revenue += revenueEUR(b);
       map[b.therapist_id].bookings += 1;
     });
     return Object.values(map)
@@ -956,7 +989,7 @@ export function useDashboardData(
         if (!map[name]) {
           map[name] = { name, revenue: 0, bookings: 0 };
         }
-        map[name].revenue += toEUR(b.total_price, b.hotel_id);
+        map[name].revenue += revenueEUR(b);
         map[name].bookings += 1;
       });
     });
@@ -971,7 +1004,7 @@ export function useDashboardData(
         const hb = filteredBookings.filter((b) => b.hotel_id === hotel.id);
         const totalSales = hb
           .filter(generatesRevenue)
-          .reduce((s, b) => s + toEUR(b.total_price, b.hotel_id), 0);
+          .reduce((s, b) => s + revenueEUR(b), 0);
         return {
           name: hotel.name,
           totalSales: formatPrice(totalSales),
