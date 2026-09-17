@@ -14,7 +14,7 @@ import {
 } from '../_shared/bookingTreatmentLines.ts';
 import { runInBackground } from '../_shared/backgroundTask.ts';
 import { resolveCatalogLines } from '../_shared/pricing.ts';
-import { computePromoDiscount, fetchPromoCodeById } from '../_shared/promo.ts';
+import { computePromoDiscount, fetchPromoCodeById, roundToCents } from '../_shared/promo.ts';
 import { deriveClientFlowClientType } from '../_shared/client-type.ts';
 
 const corsHeaders = {
@@ -718,7 +718,7 @@ try {
         // Le code promo baisse le prix de vente : total_price porte le montant
         // réellement dû (CA, factures, note de chambre). promo_discount_cents
         // garde la trace de la remise — le brut reste total + remise.
-        effectiveTotalPrice = Math.max(0, effectiveTotalPrice - promoDiscount);
+        effectiveTotalPrice = roundToCents(Math.max(0, effectiveTotalPrice - promoDiscount));
       }
     }
     const effectivePaymentMethod = isOffert ? 'offert' : (paymentMethod === 'gift_amount' ? 'gift_amount' : paymentMethod);

@@ -4,6 +4,7 @@ import { getStripeForVenue } from "../../_shared/stripe-resolver.ts";
 import type { ActionContext } from "../index.ts";
 import { tryMarkCheckoutIntentConverted } from "../../_shared/checkoutIntent.ts";
 import { normalizeClientType } from "../../_shared/client-type.ts";
+import { roundToCents } from "../../_shared/promo.ts";
 import {
   computeSlotDuration,
   fetchAddonTreatmentIds,
@@ -515,7 +516,7 @@ export async function handleConfirmSetupIntent(
           // Groupe multi-créneaux : la remise a été appliquée une seule fois au
         // total encaissé, elle est donc portée par le premier créneau.
         _total_price: i === 0
-          ? Math.max(0, slotSurcharge.totalWithSurcharge - multiPromoDiscountEuros)
+          ? roundToCents(Math.max(0, slotSurcharge.totalWithSurcharge - multiPromoDiscountEuros))
           : slotSurcharge.totalWithSurcharge,
           _treatment_ids: [slotTreatmentIds[i]].filter(Boolean),
           // Formules Semaine / Week-end : la variante porte ses propres jours autorisés.
@@ -748,7 +749,9 @@ export async function handleConfirmSetupIntent(
   // réellement dû, celui qui alimente le CA, les factures et la note de chambre.
   // promo_discount_cents garde la trace de la remise (brut = total + remise).
   const promoDiscountEuros = (meta.promoDiscountCents ? parseInt(meta.promoDiscountCents, 10) : 0) / 100;
-  const verifiedPrice = Math.max(0, surcharge.totalWithSurcharge - promoDiscountEuros);
+  const verifiedPrice = roundToCents(
+    Math.max(0, surcharge.totalWithSurcharge - promoDiscountEuros),
+  );
 
   const customerId = await resolveCustomer(
     supabase,

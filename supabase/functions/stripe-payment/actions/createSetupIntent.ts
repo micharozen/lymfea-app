@@ -1,6 +1,6 @@
 import { isInBlockedSlot } from "../../_shared/blocked-slots.ts";
 import { computeOutOfHoursSurcharge } from "../../_shared/surcharge.ts";
-import { computePromoDiscount, fetchPromoCodeById, promoLabelSuffix } from "../../_shared/promo.ts";
+import { computePromoDiscount, fetchPromoCodeById, promoLabelSuffix, roundToCents } from "../../_shared/promo.ts";
 import { resolveVerifiedPmsGuest } from "../../_shared/pms-verify.ts";
 import { computeSlotDuration, fetchAddonTreatmentIds } from "../../_shared/bookingTreatmentLines.ts";
 import { deriveClientFlowClientType } from "../../_shared/client-type.ts";
@@ -183,7 +183,9 @@ export async function handleCreateSetupIntent(
   const giftDeductionEuros = giftAmountUsage?.amountCents
     ? Math.round(giftAmountUsage.amountCents / 100)
     : 0;
-  const verifiedTotalPrice = Math.max(rawTotalPrice - promoDiscount - giftDeductionEuros, 0);
+  const verifiedTotalPrice = roundToCents(
+    Math.max(rawTotalPrice - promoDiscount - giftDeductionEuros, 0),
+  );
 
   // A promo may not zero out a card payment: a 0 € Checkout Session is a path
   // we do not support. Fully comped treatments go through the venue's `offert`
