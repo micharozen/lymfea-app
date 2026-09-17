@@ -110,6 +110,9 @@ const server = createServer(async (req, res) => {
     }
 
     const data = await readFile(filePath);
+    // HSTS: TLS is terminated upstream (Cloudflare → Railway), so the header has
+    // to come from here. No `preload` — that directive is painful to walk back.
+    res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
     res.setHeader("Content-Type", MIME[extname(filePath)] ?? "application/octet-stream");
     res.setHeader("Cache-Control", cacheControl(filePath));
     res.statusCode = 200;
