@@ -15,6 +15,10 @@ export const SITE_ORIGIN = "https://saoma.io";
 
 const COMPARE_SLUGS = ["book4time", "mindbody", "booker", "zenoti", "fresha", "treatwell"];
 
+// À garder en phase avec CUSTOMER_STORIES dans
+// `src/components/landing/customers.ts`.
+const CUSTOMER_SLUGS = ["hotel-de-buci", "cap-antibes-beach-hotel", "hotel-hana"];
+
 /**
  * `path`       — public URL path, also the sitemap entry.
  * `out`        — file written under dist/, served at `path` by serve-prod.mjs.
@@ -24,6 +28,16 @@ const COMPARE_SLUGS = ["book4time", "mindbody", "booker", "zenoti", "fresha", "t
  */
 export const MARKETING_ROUTES = [
   { path: "/", out: "landing.html", changefreq: "weekly", priority: "1.0" },
+  { path: "/tarifs", out: "tarifs.html", changefreq: "monthly", priority: "0.9" },
+  { path: "/clients", out: "clients.html", changefreq: "monthly", priority: "0.7" },
+  ...CUSTOMER_SLUGS.map((slug) => ({
+    path: `/clients/${slug}`,
+    out: `clients/${slug}.html`,
+    changefreq: "monthly",
+    priority: "0.5",
+    // Gabarit d'attente tant que le témoignage n'est pas validé.
+    minWords: 60,
+  })),
   { path: "/compare", out: "compare.html", changefreq: "monthly", priority: "0.8" },
   ...COMPARE_SLUGS.map((slug) => ({
     path: `/compare/saoma-vs-${slug}`,
