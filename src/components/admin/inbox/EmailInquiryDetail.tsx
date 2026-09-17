@@ -228,8 +228,10 @@ function InquiryFacts({ parsed, t }: { parsed: ChannelMessageParsedData; t: (k: 
   const when = formatWhen(parsed.requested_date, parsed.requested_time);
 
   // Une phrase, pas une grille : c'est ce que l'utilisateur lit en premier.
+  // `variantText` porte déjà le nombre de personnes quand la variante en définit
+  // un : le répéter en tête afficherait « 1 pers. » deux fois dans la même ligne.
   const summary = [
-    parsed.guest_count ? `${parsed.guest_count} pers.` : null,
+    parsed.guest_count && !match?.variant?.guest_count ? `${parsed.guest_count} pers.` : null,
     treatmentName,
     variantText,
     when,

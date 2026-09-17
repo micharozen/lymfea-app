@@ -242,7 +242,7 @@ async function parseEmail(inquiry: SeedInquiry, treatments: TreatmentRef[], venu
 // ── main ─────────────────────────────────────────────────────────────────────
 
 const ids = INQUIRIES.map(i => sqlQuote(i.id)).join(", ");
-await psql(`delete from email_inquiries where id in (${ids}) or parent_inquiry_id in (${ids});`);
+await psql(`delete from channel_messages where id in (${ids}) or parent_message_id in (${ids});`);
 
 // One inquiry is sent by a client we already know: the reply must use the
 // civility stored on the customer record, not one guessed from the email.
@@ -283,8 +283,8 @@ for (const inquiry of INQUIRIES) {
 
   const confidence = typeof parsed?.intent_confidence === "number" ? String(parsed.intent_confidence) : "NULL";
   await psql(`
-    insert into email_inquiries (id, hotel_id, from_address, to_address, subject, raw_body_text,
-                                 status, direction, confidence_score, parsed_data, message_id)
+    insert into channel_messages (id, hotel_id, from_identifier, to_identifier, subject, raw_body_text,
+                                  status, direction, confidence_score, parsed_data, external_message_id)
     values (${sqlQuote(inquiry.id)}, ${sqlQuote(inquiry.hotelId)}, ${sqlQuote(inquiry.from)},
             ${sqlQuote(inquiry.to)}, ${sqlQuote(inquiry.subject)}, ${sqlQuote(inquiry.body)},
             ${sqlQuote(status)}, 'inbound', ${confidence},
@@ -294,12 +294,12 @@ for (const inquiry of INQUIRIES) {
 
   if (inquiry.reply) {
     await psql(`
-      insert into email_inquiries (hotel_id, parent_inquiry_id, direction, from_address, to_address,
-                                   subject, raw_body_text, status, created_at)
+      insert into channel_messages (hotel_id, parent_message_id, direction, from_identifier, to_identifier,
+                                    subject, raw_body_text, status, created_at)
       values (${sqlQuote(inquiry.hotelId)}, ${sqlQuote(inquiry.id)}, 'outbound', ${sqlQuote(inquiry.to)},
               ${sqlQuote(inquiry.from)}, ${sqlQuote(inquiry.reply.subject)}, ${sqlQuote(inquiry.reply.body)},
               'sent', now() - interval '1 hour');
-      update email_inquiries set status = 'replied', last_reply_at = now() - interval '1 hour'
+      update channel_messages set status = 'replied', last_reply_at = now() - interval '1 hour'
         where id = ${sqlQuote(inquiry.id)};
     `);
   }

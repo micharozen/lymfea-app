@@ -2275,8 +2275,8 @@
     "noIntentsDescription": "Try adjusting your filters",
     "neverReminded": "Never",
     "itemName": "carts",
-    "cartSummary": "{{count}} treatment",
-    "cartSummary_plural": "{{count}} treatments",
+    "cartSummary_one": "{{count}} treatment",
+    "cartSummary_other": "{{count}} treatments",
     "columns": {
       "client": "Guest",
       "email": "Email",
@@ -2302,11 +2302,11 @@
       "conversionRate": "Conversion rate",
       "conversionHint": "{{converted}} bookings out of {{total}} carts",
       "abandonedValue": "Recoverable value",
-      "abandonedValueHint": "across {{count}} abandoned cart",
-      "abandonedValueHint_plural": "across {{count}} abandoned carts",
+      "abandonedValueHint_one": "across {{count}} abandoned cart",
+      "abandonedValueHint_other": "across {{count}} abandoned carts",
       "reminded": "Reminders sent",
-      "remindedHint": "{{count}} cart awaiting a reminder",
-      "remindedHint_plural": "{{count}} carts awaiting a reminder"
+      "remindedHint_one": "{{count}} cart awaiting a reminder",
+      "remindedHint_other": "{{count}} carts awaiting a reminder"
     },
     "actions": {
       "previewEmail": "Preview reminder",
@@ -2321,8 +2321,8 @@
       "total": "Total",
       "onRequest": "On request",
       "quantity": "×{{count}}",
-      "guests": "{{count}} guest",
-      "guests_plural": "{{count}} guests"
+      "guests_one": "{{count}} guest",
+      "guests_other": "{{count}} guests"
     }
   },
   "therapistTreatments": {
