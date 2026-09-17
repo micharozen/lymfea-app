@@ -1571,6 +1571,7 @@
     "create": "Create a gift card",
     "print": "Print",
     "selfPurchase": "For themselves",
+    "searchSales": "Search by buyer, recipient or code...",
     "sessionsValue": "{{count}} sessions",
     "tabs": {
       "templates": "Templates",
@@ -1610,7 +1611,8 @@
     "empty": {
       "templates": "No gift card configured",
       "templatesHint": "Click Create a gift card to get started.",
-      "sales": "No gift card sold yet"
+      "sales": "No gift card sold yet",
+      "salesSearch": "No gift card matches"
     },
     "dialog": {
       "createTitle": "New gift card",
@@ -4426,6 +4428,9 @@
     "allTherapists": "All therapists",
     "searchTherapist": "Search a therapist...",
     "noTherapistFound": "No therapist found.",
+    "allTreatments": "All treatments",
+    "searchTreatment": "Search a treatment...",
+    "noTreatmentFound": "No treatment found.",
     "lastDays": "Last {{count}} days",
     "customPeriod": "Custom period",
     "selectPeriod": "Select a period",
@@ -4439,6 +4444,7 @@
       "hotel": "Venue",
       "status": "Status",
       "therapist": "Therapist",
+      "treatment": "Treatment",
       "period": "Period",
       "payment": "Payment method",
       "paymentStatus": "Payment status"

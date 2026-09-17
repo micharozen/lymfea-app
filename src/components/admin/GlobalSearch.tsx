@@ -125,6 +125,11 @@ function useDebounce<T>(value: T, delay: number): T {
   return debouncedValue;
 }
 
+// Colonnes suffisantes pour les actions de la ligne (édition, lien de
+// paiement, remboursement) sans refetch au clic
+const BOOKING_SEARCH_SELECT =
+  "id, booking_id, booking_date, booking_time, hotel_id, hotel_name, client_first_name, client_last_name, client_email, phone, status, payment_status, payment_method, total_price, duration, guest_count, client_type, client_note, room_number, room_id, secondary_room_id, therapist_id, therapist_name, assigned_at, client_signature, signed_at, stripe_invoice_url, hotels(name, currency), treatment_rooms!bookings_trunk_id_fkey(name), booking_treatments(price_override, treatment_menus(name, price), treatment_variants(label, price))";
+
 type BookingAction = "edit" | "payment" | "refund";
 
 export interface GlobalSearchPick {
@@ -220,7 +225,7 @@ export function GlobalSearch({
         ? `,booking_id.eq.${debouncedSearch}`
         : "";
 
-      const [custRes, therRes, bookRes] = await Promise.all([
+      const [custRes, therRes, bookRes, promoRes] = await Promise.all([
         supabase
           .from("customers")
           .select("*")
@@ -233,18 +238,45 @@ export function GlobalSearch({
           .limit(5),
         supabase
           .from("bookings")
-          // Colonnes suffisantes pour les actions de la ligne (édition, lien de
-          // paiement, remboursement) sans refetch au clic
-          .select("id, booking_id, booking_date, booking_time, hotel_id, hotel_name, client_first_name, client_last_name, client_email, phone, status, payment_status, payment_method, total_price, duration, guest_count, client_type, client_note, room_number, room_id, secondary_room_id, therapist_id, therapist_name, assigned_at, client_signature, signed_at, stripe_invoice_url, hotels(name, currency), treatment_rooms!bookings_trunk_id_fkey(name), booking_treatments(price_override, treatment_menus(name, price), treatment_variants(label, price))")
+          .select(BOOKING_SEARCH_SELECT)
           .or(`client_first_name.ilike.${searchTerm},client_last_name.ilike.${searchTerm},client_email.ilike.${searchTerm}${phoneMatch}${bookingIdMatch}`)
           .order("booking_date", { ascending: false })
           .limit(10),
+        // Le code promo vit dans promo_codes : on résout d'abord les codes qui
+        // correspondent à la saisie, puis les réservations qui les portent.
+        supabase
+          .from("promo_codes")
+          .select("id")
+          .ilike("code", searchTerm)
+          .limit(10),
       ]);
+
+      const promoIds = (promoRes.data ?? []).map((promo) => promo.id);
+      const promoBookings = promoIds.length
+        ? (
+            await supabase
+              .from("bookings")
+              .select(BOOKING_SEARCH_SELECT)
+              .in("promo_code_id", promoIds)
+              .order("booking_date", { ascending: false })
+              .limit(10)
+          ).data ?? []
+        : [];
+
+      // Une réservation peut remonter des deux côtés (client ET code promo) :
+      // on déduplique sur l'id avant d'afficher.
+      const bookingsById = new Map<string, (typeof promoBookings)[number]>();
+      for (const booking of [...(bookRes.data ?? []), ...promoBookings]) {
+        bookingsById.set(booking.id, booking);
+      }
 
       return {
         customers: custRes.data || [],
         therapists: therRes.data || [],
-        bookings: bookRes.data || [],
+        // Tri global : les deux requêtes sont triées séparément, pas leur union.
+        bookings: [...bookingsById.values()].sort((a, b) =>
+          (b.booking_date ?? "").localeCompare(a.booking_date ?? ""),
+        ),
       };
     },
   });

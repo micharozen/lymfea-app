@@ -50,3 +50,26 @@ export async function listActiveTreatmentsForHotel(
   if (error) throw error;
   return (data ?? []) as TreatmentMenuRow[];
 }
+
+/**
+ * Noms distincts des prestations de l'organisation, pour alimenter le filtre
+ * "prestation" de la liste des réservations. Dédupliqués : un même soin proposé
+ * dans plusieurs lieux ne doit pas apparaître plusieurs fois.
+ */
+export async function listTreatmentNamesForOrg(
+  client: TClient,
+  scope: OrgScope,
+): Promise<string[]> {
+  const hotelIds = await resolveHotelIdsForOrg(client, scope);
+  let q = client.from("treatment_menus").select("name").order("name");
+  if (hotelIds !== null) {
+    if (hotelIds.length === 0) return [];
+    q = q.in("hotel_id", hotelIds);
+  }
+  const { data, error } = await q;
+  if (error) throw error;
+  const names = (data ?? [])
+    .map((row) => (row as { name: string | null }).name)
+    .filter((name): name is string => !!name);
+  return [...new Set(names)];
+}

@@ -26,12 +26,20 @@ export type PlanningMode = "day" | "therapists";
  * Le choix est mémorisé en localStorage : la barre reste légère et chacun
  * garde sa configuration d'un écran à l'autre.
  */
-type FilterKey = "hotel" | "status" | "payment" | "paymentStatus" | "period" | "therapist";
+type FilterKey =
+  | "hotel"
+  | "status"
+  | "payment"
+  | "paymentStatus"
+  | "period"
+  | "therapist"
+  | "treatment";
 
 const TOGGLEABLE_FILTERS: { key: FilterKey; labelKey: string }[] = [
   { key: "hotel", labelKey: "bookingFilters.toggles.hotel" },
   { key: "status", labelKey: "bookingFilters.toggles.status" },
   { key: "therapist", labelKey: "bookingFilters.toggles.therapist" },
+  { key: "treatment", labelKey: "bookingFilters.toggles.treatment" },
   { key: "period", labelKey: "bookingFilters.toggles.period" },
   { key: "payment", labelKey: "bookingFilters.toggles.payment" },
   { key: "paymentStatus", labelKey: "bookingFilters.toggles.paymentStatus" },
@@ -77,6 +85,11 @@ interface BookingFiltersProps {
   onHotelChange: (value: string[]) => void;
   therapistFilter: string[];
   onTherapistChange: (value: string[]) => void;
+  /** Filtre par prestation (noms de soins). Fournir le handler expose le sélecteur. */
+  treatmentFilter?: string[];
+  onTreatmentChange?: (value: string[]) => void;
+  /** Noms de prestations proposés, déjà dédupliqués. */
+  treatmentOptions?: string[];
   /** Payment filters. Omit the handlers to hide the selects (calendar view). */
   paymentMethodFilter?: string[];
   onPaymentMethodChange?: (value: string[]) => void;
@@ -133,6 +146,9 @@ export function BookingFilters({
   onHotelChange,
   therapistFilter,
   onTherapistChange,
+  treatmentFilter = EMPTY_SELECTION,
+  onTreatmentChange,
+  treatmentOptions,
   paymentMethodFilter = EMPTY_SELECTION,
   onPaymentMethodChange,
   paymentStatusFilter = EMPTY_SELECTION,
@@ -195,6 +211,7 @@ export function BookingFilters({
       if (key === "hotel") onHotelChange([]);
       if (key === "status") onStatusChange([]);
       if (key === "therapist") onTherapistChange([]);
+      if (key === "treatment") onTreatmentChange?.([]);
       if (key === "payment") onPaymentMethodChange?.([]);
       if (key === "paymentStatus") onPaymentStatusChange?.([]);
       if (key === "period") onCustomRangeChange?.(null);
@@ -207,6 +224,7 @@ export function BookingFilters({
     hotelFilter.length +
     statusFilter.length +
     therapistFilter.length +
+    treatmentFilter.length +
     paymentMethodFilter.length +
     paymentStatusFilter.length +
     (customRange ? 1 : 0);
@@ -410,6 +428,17 @@ export function BookingFilters({
             value: therapist.id,
             label: `${therapist.first_name} ${therapist.last_name}`,
           }))}
+        />
+      )}
+
+      {isVisible("treatment") && onTreatmentChange && (
+        <MultiSelectFilter
+          value={treatmentFilter}
+          onChange={onTreatmentChange}
+          allLabel={t("bookingFilters.allTreatments")}
+          searchPlaceholder={t("bookingFilters.searchTreatment")}
+          emptyLabel={t("bookingFilters.noTreatmentFound")}
+          options={(treatmentOptions ?? []).map((name) => ({ value: name, label: name }))}
         />
       )}
 
