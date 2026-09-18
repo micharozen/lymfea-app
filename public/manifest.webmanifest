@@ -1,9 +1,9 @@
 {
-  "name": "Saoma — La plateforme de gestion spa pour hôtels",
+  "name": "Saoma — Application thérapeute",
   "short_name": "Saoma",
-  "description": "Plateforme tout-en-un pour gérer le spa de votre hôtel : agenda unifié, PMS, app thérapeute, booking client.",
+  "description": "Gérez vos rendez-vous, vos lieux et vos gains",
   "id": "/pwa/v2",
-  "theme_color": "#C4B07A",
+  "theme_color": "#000000",
   "background_color": "#ffffff",
   "display": "standalone",
   "orientation": "portrait",
