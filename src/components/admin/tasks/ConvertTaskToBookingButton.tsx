@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from "react";
+import { lazy, Suspense, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { CalendarPlus, ExternalLink } from "lucide-react";
@@ -37,6 +37,10 @@ export function ConvertTaskToBookingButton({ task, onConverted }: Props) {
   const { t } = useTranslation("admin");
   const { update } = useTaskMutations();
   const [open, setOpen] = useState(false);
+  // Conservée jusqu'à la fermeture : la conversion est acquise dès la création,
+  // mais on ne prévient le parent qu'une fois la modale (et son étape d'envoi
+  // de la communication) réellement quittée.
+  const convertedRef = useRef<CreatedBookingInfo | null>(null);
 
   // Déjà convertie : la conversion n'est pas rejouable, on renvoie vers la résa.
   if (task.converted_booking_id) {
@@ -87,7 +91,7 @@ export function ConvertTaskToBookingButton({ task, onConverted }: Props) {
         converted_booking_id: booking.id,
       });
       toast.success(t("tasks.convertSuccess", { number: booking.booking_id }));
-      onConverted?.(booking);
+      convertedRef.current = booking;
     } catch (error) {
       // La réservation existe : on ne doit pas laisser croire le contraire.
       toast.error(
@@ -97,7 +101,16 @@ export function ConvertTaskToBookingButton({ task, onConverted }: Props) {
         }),
       );
     }
-    setOpen(false);
+  };
+
+  // La réservation créée, `BookingModal` reste ouverte sur son étape finale pour
+  // que l'envoi de la communication soit une action distincte et facultative.
+  const handleOpenChange = (next: boolean) => {
+    setOpen(next);
+    if (next) return;
+    const booking = convertedRef.current;
+    convertedRef.current = null;
+    if (booking) onConverted?.(booking);
   };
 
   return (
@@ -110,7 +123,7 @@ export function ConvertTaskToBookingButton({ task, onConverted }: Props) {
         <Suspense fallback={null}>
           <BookingModal
             open={open}
-            onOpenChange={setOpen}
+            onOpenChange={handleOpenChange}
             initialValues={initialValues}
             source={channelToBookingSource(task.channel as TaskChannel | null)}
             onCreated={handleCreated}
