@@ -1824,7 +1824,7 @@
       "treatments": "Soins",
       "total": "Total",
       "client": "Client",
-      "createAndSend": "Créer et envoyer le lien",
+      "createAndSend": "Créer la réservation",
       "createAndNotify": "Créer et envoyer la confirmation"
     },
     "done": {
