@@ -5411,6 +5411,96 @@ export type Database = {
         }
         Returns: undefined
       }
+      search_booking_ids: {
+        Args: { _limit?: number; _query: string }
+        Returns: {
+          booking_date: string
+          id: string
+          rank: number
+        }[]
+      }
+      search_customers: {
+        Args: { _limit?: number; _query: string }
+        Returns: {
+          auth_user_id: string | null
+          civility: string | null
+          created_at: string
+          email: string | null
+          first_name: string | null
+          health_notes: string | null
+          id: string
+          language: string | null
+          last_name: string | null
+          organization_id: string
+          phone: string | null
+          preferred_therapist_id: string | null
+          preferred_treatment_type: string | null
+          profile_completed: boolean
+          stripe_customer_id: string | null
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "customers"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      search_digits: { Args: { _input: string }; Returns: string }
+      search_haystack_matches: {
+        Args: { _haystack: string; _tokens: string[] }
+        Returns: boolean
+      }
+      search_normalize: { Args: { _input: string }; Returns: string }
+      search_phone_matches: {
+        Args: { _digits: string; _phone: string }
+        Returns: boolean
+      }
+      search_rank: { Args: { _label: string; _query: string }; Returns: number }
+      search_therapists: {
+        Args: { _limit?: number; _query: string }
+        Returns: {
+          country_code: string
+          created_at: string
+          email: string
+          first_name: string
+          gender: string | null
+          hourly_rate: number | null
+          id: string
+          last_name: string
+          minimum_guarantee: Json | null
+          minimum_guarantee_active: boolean | null
+          notification_test_error: string | null
+          notification_test_sent_at: string | null
+          notification_test_status: string | null
+          password_set: boolean | null
+          phone: string
+          profile_image: string | null
+          rate_105: number | null
+          rate_120: number | null
+          rate_150: number | null
+          rate_30: number | null
+          rate_45: number | null
+          rate_60: number | null
+          rate_75: number | null
+          rate_90: number | null
+          skills: string[] | null
+          status: string
+          stripe_account_id: string | null
+          stripe_onboarding_completed: boolean | null
+          treatment_rates: Json | null
+          treatment_rates_active: boolean | null
+          updated_at: string
+          user_id: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "therapists"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      search_tokens: { Args: { _query: string }; Returns: string[] }
       set_booking_rooms: {
         Args: {
           _booking_id: string

@@ -183,12 +183,16 @@ bookings (n) ←→ (0-1) trunks [salle assignée]
 | `get_hairdresser_id(user_id)` | ID thérapeute d'un user |
 | `get_enterprise_session_data(hotel_id, date)` | Données dashboard journée |
 | `get_client_funnel(hotel_id, start, end)` | Analytics funnel client |
+| `search_customers(query, limit)` | Recherche globale (⌘K) : clients, sans accents, « Prénom Nom » dans les deux ordres, téléphone chiffre à chiffre |
+| `search_therapists(query, limit)` | Idem pour les thérapeutes |
+| `search_booking_ids(query, limit)` | Idem pour les réservations — renvoie des ids classés par pertinence, la palette réhydrate les lignes |
 
 ## Row-Level Security (RLS)
 
 - Les fonctions `get_public_*` utilisent `SECURITY DEFINER` pour bypass RLS sur données publiques
 - Les tables bookings, treatments, etc. ont des politiques RLS basées sur `user_id` et `hotel_id`
 - `client_analytics` autorise les INSERT anonymes
+- Les fonctions `search_*` sont `SECURITY INVOKER` : la recherche globale hérite du périmètre RLS de l'appelant (un concierge ne voit que ses lieux)
 
 ---
 
