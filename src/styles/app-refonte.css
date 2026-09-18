@@ -846,6 +846,11 @@
 .app-refonte .gs-state .t{font-family:var(--serif); font-size:19px; color:var(--ink); margin-bottom:5px;}
 .app-refonte .gs-state .s{font-size:13px;}
 
+/* Pied de liste quand les résultats sont tronqués : précisez la recherche. */
+.app-refonte .gs-more{
+  padding:10px 16px 14px; text-align:center; font-size:12px; color:var(--ink-mute);
+}
+
 /* ────────────────────────────────────────────────────────────
    Blocage de plage horaire (admin) — même approche que .gs-dialog :
    le contenu du Dialog porte .app-refonte pour hériter des tokens.
