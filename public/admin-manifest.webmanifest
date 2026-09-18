@@ -1,7 +1,7 @@
 {
-  "name": "Eïa Admin",
-  "short_name": "Eïa Admin",
-  "description": "Eïa Admin - Gestion des réservations",
+  "name": "Saoma Admin",
+  "short_name": "Saoma Admin",
+  "description": "Saoma Admin – Gestion des réservations et des soins",
   "id": "/admin-pwa/v1",
   "theme_color": "#000000",
   "background_color": "#ffffff",

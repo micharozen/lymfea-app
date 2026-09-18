@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { brand } from "@/config/brand";
 import { Button } from "@/components/ui/button";
 import { useViewMode } from "@/contexts/ViewModeContext";
 import { useUser } from "@/contexts/UserContext";
@@ -103,13 +104,14 @@ export function WelcomeDialog({ open, onClose }: WelcomeDialogProps) {
                   </div>
                   <div>
                     <h2 className="text-xl font-serif font-semibold">
-                      {t("welcome.step1.title", "Bienvenue sur Eïa")}
+                      {t("welcome.step1.title", { defaultValue: "Bienvenue sur {{brandName}}", brandName: brand.name })}
                     </h2>
                     <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
-                      {t(
-                        "welcome.step1.body",
-                        "Eïa centralise vos réservations, votre planning thérapeutes et votre billing en un seul endroit. Ce guide rapide vous présente les zones clés de l'app.",
-                      )}
+                      {t("welcome.step1.body", {
+                        defaultValue:
+                          "{{brandName}} centralise vos réservations, votre planning thérapeutes et votre billing en un seul endroit. Ce guide rapide vous présente les zones clés de l'app.",
+                        brandName: brand.name,
+                      })}
                     </p>
                   </div>
                 </div>
@@ -197,10 +199,10 @@ export function WelcomeDialog({ open, onClose }: WelcomeDialogProps) {
                     {t("welcome.step3.title", "Votre avis compte")}
                   </h2>
                   <p className="text-sm text-muted-foreground text-center">
-                    {t(
-                      "welcome.step3.body",
-                      "Vous testez Eïa : dites-nous tout. Vos retours guident la roadmap.",
-                    )}
+                    {t("welcome.step3.body", {
+                      defaultValue: "Vous testez {{brandName}} : dites-nous tout. Vos retours guident la roadmap.",
+                      brandName: brand.name,
+                    })}
                   </p>
                   <div className="grid gap-2">
                     {TALLY_URL && (
