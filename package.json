@@ -33,6 +33,7 @@
     "sync:brand": "cp src/config/brand.json supabase/functions/_shared/brand.json",
     "generate:manifests": "node scripts/generate-manifests.js",
     "og:generate": "node scripts/generate-og-image.mjs",
+    "og:generate:saoma": "node scripts/generate-saoma-og-image.mjs",
     "favicons:generate": "node scripts/generate-favicons.mjs",
     "rebrand": "npm run sync:brand && npm run generate:manifests"
   },
