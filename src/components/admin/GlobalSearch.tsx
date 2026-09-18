@@ -12,7 +12,6 @@ import {
 import { Command as CommandPrimitive } from "cmdk";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"; // FIX 1: Ajout du titre pour l'accessibilité
 import { supabase } from "@/integrations/supabase/client";
-import { useUserContext } from "@/hooks/useUserContext";
 import { getBookingStatusConfig, getEntityStatusConfig, getBookingPaymentDisplay } from "@/utils/statusStyles";
 import EditBookingDialog from "@/components/EditBookingDialog";
 import { SendPaymentLinkDialog } from "@/components/booking/SendPaymentLinkDialog";
@@ -127,6 +126,11 @@ function useDebounce<T>(value: T, delay: number): T {
 
 // Colonnes suffisantes pour les actions de la ligne (édition, lien de
 // paiement, remboursement) sans refetch au clic
+// Un cran au-dessus de ce que l'écran montrait (5) : chercher un client parmi
+// des milliers de fiches homonymes demandait de voir plus d'une poignée de
+// lignes. Au-delà, c'est la saisie qu'il faut préciser — la palette le dit.
+const SEARCH_LIMIT = 20;
+
 const BOOKING_SEARCH_SELECT =
   "id, booking_id, booking_date, booking_time, hotel_id, hotel_name, client_first_name, client_last_name, client_email, phone, status, payment_status, payment_method, total_price, duration, guest_count, client_type, client_note, room_number, room_id, secondary_room_id, therapist_id, therapist_name, assigned_at, client_signature, signed_at, stripe_invoice_url, hotels(name, currency), treatment_rooms!bookings_trunk_id_fkey(name), booking_treatments(price_override, treatment_menus(name, price), treatment_variants(label, price))";
 
@@ -180,7 +184,6 @@ export function GlobalSearch({
   const debouncedSearch = useDebounce(search, 450);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { isAdmin, userVenueIds } = useUserContext() as any;
   const { t } = useTranslation(["admin", "common"]);
 
   // Raccourci clavier Cmd+K ou Ctrl+K
@@ -201,89 +204,67 @@ export function GlobalSearch({
     if (!open) setSearch("");
   }, [open]);
 
-  // Recherche serveur — bookings + customers + therapists en une seule passe
-  // Déclenchée uniquement quand le dialog est ouvert et ≥2 caractères tapés
-   // 1. Recherche dynamique Côté Serveur
-   const { data: searchResults, isFetching } = useQuery({
+  // Recherche serveur — bookings + customers + therapists en une seule passe.
+  // Le matching vit dans trois RPC (search_customers, search_therapists,
+  // search_booking_ids) : elles cherchent sur une chaîne normalisée sans
+  // accents, acceptent « Prénom Nom » dans les deux ordres et comparent les
+  // téléphones chiffre à chiffre. Un filtre PostgREST `ilike` par colonne ne
+  // savait faire aucun des trois.
+  const {
+    data: searchResults,
+    isFetching,
+    isError,
+  } = useQuery({
     queryKey: ["global-search", debouncedSearch],
     enabled: debouncedSearch.length >= 2 && open,
     // Garde les résultats précédents affichés pendant la frappe : évite le
     // clignotement « Recherche en cours » à chaque nouvelle requête
     placeholderData: keepPreviousData,
     queryFn: async () => {
-      const searchTerm = `%${debouncedSearch}%`;
+      const term = debouncedSearch.trim();
 
-      // Saisie composée uniquement de chiffres/séparateurs téléphoniques
-      const isNumericQuery = /^\+?[\d\s.\-()]+$/.test(debouncedSearch);
-      const digitCount = debouncedSearch.replace(/\D/g, "").length;
-      // « 12 » = réservation #12, pas une recherche de sous-chaîne dans les
-      // numéros de téléphone (sinon un 06 12 … remonte pour n'importe quoi).
-      // Au-delà de 5 chiffres on considère qu'il s'agit d'un vrai numéro.
-      const matchPhone = !isNumericQuery || digitCount > 5;
-      const phoneMatch = matchPhone ? `,phone.ilike.${searchTerm}` : "";
-      const bookingIdMatch = /^\d+$/.test(debouncedSearch)
-        ? `,booking_id.eq.${debouncedSearch}`
-        : "";
-
-      const [custRes, therRes, bookRes, promoRes] = await Promise.all([
-        supabase
-          .from("customers")
-          .select("*")
-          .or(`first_name.ilike.${searchTerm},last_name.ilike.${searchTerm},email.ilike.${searchTerm}${phoneMatch}`)
-          .limit(5),
-        supabase
-          .from("therapists")
-          .select("*")
-          .or(`first_name.ilike.${searchTerm},last_name.ilike.${searchTerm},email.ilike.${searchTerm}`)
-          .limit(5),
-        supabase
-          .from("bookings")
-          .select(BOOKING_SEARCH_SELECT)
-          .or(`client_first_name.ilike.${searchTerm},client_last_name.ilike.${searchTerm},client_email.ilike.${searchTerm}${phoneMatch}${bookingIdMatch}`)
-          .order("booking_date", { ascending: false })
-          .limit(10),
-        // Le code promo vit dans promo_codes : on résout d'abord les codes qui
-        // correspondent à la saisie, puis les réservations qui les portent.
-        supabase
-          .from("promo_codes")
-          .select("id")
-          .ilike("code", searchTerm)
-          .limit(10),
+      const [custRes, therRes, bookingIdsRes] = await Promise.all([
+        supabase.rpc("search_customers", { _query: term, _limit: SEARCH_LIMIT }),
+        supabase.rpc("search_therapists", { _query: term, _limit: SEARCH_LIMIT }),
+        supabase.rpc("search_booking_ids", { _query: term, _limit: SEARCH_LIMIT }),
       ]);
 
-      const promoIds = (promoRes.data ?? []).map((promo) => promo.id);
-      const promoBookings = promoIds.length
-        ? (
-            await supabase
-              .from("bookings")
-              .select(BOOKING_SEARCH_SELECT)
-              .in("promo_code_id", promoIds)
-              .order("booking_date", { ascending: false })
-              .limit(10)
-          ).data ?? []
-        : [];
+      // Une erreur remonte au lieu d'être avalée : « aucun résultat » ne doit
+      // pas masquer une requête cassée.
+      const failed = [custRes, therRes, bookingIdsRes].find((res) => res.error);
+      if (failed?.error) throw failed.error;
 
-      // Une réservation peut remonter des deux côtés (client ET code promo) :
-      // on déduplique sur l'id avant d'afficher.
-      const bookingsById = new Map<string, (typeof promoBookings)[number]>();
-      for (const booking of [...(bookRes.data ?? []), ...promoBookings]) {
-        bookingsById.set(booking.id, booking);
+      // La RPC ne renvoie que des identifiants, classés par pertinence : les
+      // lignes sont réhydratées ici avec les embeds dont l'écran a besoin.
+      const rankedIds = (bookingIdsRes.data ?? []).map((row) => row.id);
+      let bookings: any[] = [];
+      if (rankedIds.length > 0) {
+        const { data, error } = await supabase
+          .from("bookings")
+          .select(BOOKING_SEARCH_SELECT)
+          .in("id", rankedIds);
+        if (error) throw error;
+        const byId = new Map((data ?? []).map((booking) => [booking.id, booking]));
+        bookings = rankedIds.map((id) => byId.get(id)).filter(Boolean) as any[];
       }
 
       return {
-        customers: custRes.data || [],
-        therapists: therRes.data || [],
-        // Tri global : les deux requêtes sont triées séparément, pas leur union.
-        bookings: [...bookingsById.values()].sort((a, b) =>
-          (b.booking_date ?? "").localeCompare(a.booking_date ?? ""),
-        ),
+        customers: custRes.data ?? [],
+        therapists: therRes.data ?? [],
+        bookings,
       };
     },
   });
 
-  const filteredBookings = (searchResults?.bookings || [])
-    .filter((b: any) => isAdmin || userVenueIds?.includes(b.hotel_id))
-    .slice(0, 5);
+  const bookings = searchResults?.bookings ?? [];
+  const customers = searchResults?.customers ?? [];
+  const therapists = searchResults?.therapists ?? [];
+  // Une section pleine signale que la liste est tronquée : on le dit plutôt que
+  // de laisser croire qu'il n'existe rien d'autre.
+  const isTruncated =
+    bookings.length >= SEARCH_LIMIT ||
+    customers.length >= SEARCH_LIMIT ||
+    therapists.length >= SEARCH_LIMIT;
 
   // Frappe en cours (debounce non écoulé) ou requête en vol
   const isTyping = search.length >= 2 && (search !== debouncedSearch || isFetching);
@@ -412,6 +393,11 @@ export function GlobalSearch({
                   <div className="t">{t("globalSearch.title")}</div>
                   <div className="s">{t("globalSearch.hint")}</div>
                 </div>
+              ) : isError ? (
+                <div className="gs-state">
+                  <div className="t">{t("globalSearch.errorTitle")}</div>
+                  <div className="s">{t("globalSearch.errorHint")}</div>
+                </div>
               ) : !searchResults ? (
                 <div className="gs-state">
                   <Loader2 className="w-5 h-5 mx-auto mb-3 animate-spin" />
@@ -427,9 +413,9 @@ export function GlobalSearch({
                     </div>
                   </CommandEmpty>
 
-                  {filteredBookings.length > 0 && (
+                  {bookings.length > 0 && (
                     <CommandGroup heading={t("globalSearch.groups.bookings")}>
-                      {filteredBookings.map((booking: any) => {
+                      {bookings.map((booking: any) => {
                         const statusConfig = getBookingStatusConfig(booking.status);
                         const payment = getBookingPaymentDisplay(booking);
                         const roomName = booking.treatment_rooms?.name as string | undefined;
@@ -497,9 +483,9 @@ export function GlobalSearch({
                     </CommandGroup>
                   )}
 
-                  {(searchResults?.customers?.length ?? 0) > 0 && (
+                  {customers.length > 0 && (
                     <CommandGroup heading={t("globalSearch.groups.customers")}>
-                      {searchResults!.customers.map((c: any) => (
+                      {customers.map((c: any) => (
                         <CommandItem
                           key={c.id}
                           // FIX 3
@@ -536,9 +522,9 @@ export function GlobalSearch({
                     </CommandGroup>
                   )}
 
-                  {(searchResults?.therapists?.length ?? 0) > 0 && (
+                  {therapists.length > 0 && (
                     <CommandGroup heading={t("globalSearch.groups.therapists")}>
-                      {searchResults!.therapists.map((th: any) => (
+                      {therapists.map((th: any) => (
                         <CommandItem
                           key={th.id}
                           // FIX 3
@@ -562,6 +548,10 @@ export function GlobalSearch({
                         </CommandItem>
                       ))}
                     </CommandGroup>
+                  )}
+
+                  {isTruncated && (
+                    <div className="gs-more">{t("globalSearch.truncated", { limit: SEARCH_LIMIT })}</div>
                   )}
                 </>
               )}
