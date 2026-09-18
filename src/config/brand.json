@@ -1,20 +1,20 @@
 {
-  "name": "Eïa",
+  "name": "Saoma",
   "tagline": {
-    "fr": "Éveillez vos sens",
-    "en": "Awaken Your Senses"
+    "fr": "Logiciel de gestion spa pour hôtels",
+    "en": "Spa management software for hotels"
   },
-  "fullName": "Eïa – Centre Holistique",
+  "fullName": "Saoma — Logiciel de gestion spa pour hôtels",
   "description": {
-    "fr": "Centre holistique de soins et massages – Bien plus qu'un lieu de détente, une expérience qui éveille les sens à travers des soins holistiques qui transforment et équilibrent tout l'être",
-    "en": "Holistic wellness center – More than a relaxation venue, an experience that awakens the senses through holistic treatments that transform and balance your whole being"
+    "fr": "Saoma, la plateforme tout-en-un pour gérer le spa de votre hôtel : agenda unifié, intégration PMS Opera Cloud & Mews, application thérapeute mobile, réservation client sans friction.",
+    "en": "Saoma, the all-in-one platform to run your hotel spa: unified calendar, Opera Cloud & Mews PMS integration, mobile therapist app, frictionless client booking."
   },
-  "website": "https://lymfea.fr",
-  "appDomain": "app.lymfea.fr",
+  "website": "https://saoma.io",
+  "appDomain": "app.saoma.io",
 
   "philosophy": {
-    "fr": "Votre renaissance commence ici",
-    "en": "Your rebirth begins here"
+    "fr": "Le spa de votre hôtel, enfin sous contrôle",
+    "en": "Your hotel spa, finally under control"
   },
 
   "serviceCategories": [
@@ -86,19 +86,19 @@
 
   "pwa": {
     "therapist": {
-      "name": "Eïa – Éveillez vos sens",
-      "shortName": "Eïa",
+      "name": "Saoma — Application thérapeute",
+      "shortName": "Saoma",
       "description": {
-        "fr": "Centre holistique de soins et massages – Gérez vos rendez-vous",
-        "en": "Holistic wellness center – Manage your appointments"
+        "fr": "Gérez vos rendez-vous, vos lieux et vos gains",
+        "en": "Manage your appointments, venues and earnings"
       }
     },
     "admin": {
-      "name": "Eïa Admin",
-      "shortName": "Eïa Admin",
+      "name": "Saoma Admin",
+      "shortName": "Saoma Admin",
       "description": {
-        "fr": "Eïa Admin – Gestion des réservations et soins",
-        "en": "Eïa Admin – Booking & treatment management"
+        "fr": "Saoma Admin – Gestion des réservations et des soins",
+        "en": "Saoma Admin – Booking & treatment management"
       }
     }
   },
