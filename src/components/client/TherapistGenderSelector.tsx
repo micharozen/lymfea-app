@@ -34,7 +34,7 @@ export function TherapistGenderSelector({ value, onChange }: TherapistGenderSele
               className={cn(
                 'h-8 inline-flex items-center gap-1.5 px-3 rounded-full text-xs font-medium transition-all duration-150',
                 isActive
-                  ? 'bg-white text-gold-600 shadow-sm ring-1 ring-gold-300'
+                  ? 'bg-white text-brand-600 shadow-sm ring-1 ring-brand-300'
                   : 'text-gray-500 hover:text-gray-700',
               )}
             >

@@ -538,8 +538,8 @@ const requiredGuestCount = Math.max(1, ...items.filter(i => !i.isAmenity).map(i 
       {/* Booking date/time display */}
       {bookingDateTime && (
         <div className="flex items-center gap-3 p-3 bg-white border border-gray-200 rounded-lg">
-          <div className="w-9 h-9 rounded-full bg-gold-500/10 flex items-center justify-center shrink-0">
-            <Calendar className="h-4 w-4 text-gold-600" />
+          <div className="w-9 h-9 rounded-full bg-brand-500/10 flex items-center justify-center shrink-0">
+            <Calendar className="h-4 w-4 text-brand-600" />
           </div>
           <div>
             <p className="text-sm text-gray-900 font-medium">
@@ -846,7 +846,7 @@ const requiredGuestCount = Math.max(1, ...items.filter(i => !i.isAmenity).map(i 
                   {formatPrice(totalWithSurcharge, items[0]?.currency || 'EUR')}
                 </span>
               )}
-              <span className="text-gold-600 text-lg font-serif">{formatPrice(applyPromo(uncoveredTotalWithSurcharge), items[0]?.currency || 'EUR')}</span>
+              <span className="text-brand-600 text-lg font-serif">{formatPrice(applyPromo(uncoveredTotalWithSurcharge), items[0]?.currency || 'EUR')}</span>
             </div>
           ) : isOffert ? (
             <span className="inline-flex items-baseline gap-1.5">
@@ -859,7 +859,7 @@ const requiredGuestCount = Math.max(1, ...items.filter(i => !i.isAmenity).map(i 
               <span className="text-amber-400 text-sm ml-2">{t('payment.plusQuote')}</span>
             </div>
           ) : (
-            <span className="text-gold-600 text-lg font-serif">{formatPrice(applyPromo(totalWithSurcharge), items[0]?.currency || 'EUR')}</span>
+            <span className="text-brand-600 text-lg font-serif">{formatPrice(applyPromo(totalWithSurcharge), items[0]?.currency || 'EUR')}</span>
           )}
         </div>
 
@@ -895,21 +895,21 @@ const requiredGuestCount = Math.max(1, ...items.filter(i => !i.isAmenity).map(i 
             className={cn(
               "w-full p-3 rounded-lg border transition-all duration-200 text-left",
               selectedMethod === 'card'
-                ? "border-gold-500 bg-gold-500/10"
+                ? "border-brand-500 bg-brand-500/10"
                 : "border-gray-200 bg-white hover:border-gray-300"
             )}
           >
             <div className="flex items-center gap-3">
               <div className={cn(
                 "w-9 h-9 rounded-full flex items-center justify-center transition-all",
-                selectedMethod === 'card' ? "bg-gold-400 text-black" : "bg-gray-100 text-gray-500"
+                selectedMethod === 'card' ? "bg-brand-400 text-black" : "bg-gray-100 text-gray-500"
               )}>
                 <CreditCard className="h-4 w-4" />
               </div>
               <div>
                 <p className={cn(
   "text-sm font-medium",
-  selectedMethod === 'card' ? "text-gold-600" : "text-gray-900"
+  selectedMethod === 'card' ? "text-brand-600" : "text-gray-900"
 )}>{payAtBooking ? t('payment.payNow', 'Paiement par carte') : t('payment.saveCard', 'Réserver')}</p>
 {!payAtBooking && (
   <p className="text-xs text-gray-400">{t('payment.saveCardDesc', 'Votre carte sera débitée après votre soin')}</p>
@@ -929,21 +929,21 @@ const requiredGuestCount = Math.max(1, ...items.filter(i => !i.isAmenity).map(i 
               className={cn(
                 "w-full p-3 rounded-lg border transition-all duration-200 text-left",
                 selectedMethod === 'room'
-                  ? "border-gold-500 bg-gold-500/10"
+                  ? "border-brand-500 bg-brand-500/10"
                   : "border-gray-200 bg-white hover:border-gray-300"
               )}
             >
               <div className="flex items-center gap-3">
                 <div className={cn(
                   "w-9 h-9 rounded-full flex items-center justify-center transition-all",
-                  selectedMethod === 'room' ? "bg-gold-400 text-black" : "bg-gray-100 text-gray-500"
+                  selectedMethod === 'room' ? "bg-brand-400 text-black" : "bg-gray-100 text-gray-500"
                 )}>
                   <Building className="h-4 w-4" />
                 </div>
                 <div>
                   <p className={cn(
                     "text-sm font-medium",
-                    selectedMethod === 'room' ? "text-gold-600" : "text-gray-900"
+                    selectedMethod === 'room' ? "text-brand-600" : "text-gray-900"
                   )}>{venueTerms.addToLocationLabel}</p>
                   <p className="text-xs text-gray-400">{venueTerms.addToLocationDesc}</p>
                 </div>

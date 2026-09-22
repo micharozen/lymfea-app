@@ -102,7 +102,7 @@ export const LanguageSwitcher = ({ variant = 'default', className = '', onSelect
               onClick={() => changeLanguage(lang.code)}
               className={`text-xs tracking-[0.2em] transition-all duration-300 ${
                 i18n.language === lang.code
-                  ? 'text-gold-600 font-medium scale-105'
+                  ? 'text-brand-600 font-medium scale-105'
                   : 'text-white/40 hover:text-white/80 font-light'
               }`}
             >

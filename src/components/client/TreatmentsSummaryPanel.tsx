@@ -76,7 +76,7 @@ export function TreatmentsSummaryPanel({
                 href={mapsUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-1 flex items-start gap-1 text-xs text-gray-500 font-light leading-snug hover:text-gold-600 transition-colors"
+                className="mt-1 flex items-start gap-1 text-xs text-gray-500 font-light leading-snug hover:text-brand-600 transition-colors"
               >
                 <MapPin className="h-3 w-3 mt-0.5 shrink-0 text-gray-400" />
                 <span className="line-clamp-2 underline decoration-gray-300 underline-offset-2">
@@ -146,7 +146,7 @@ export function TreatmentsSummaryPanel({
                         variant="ghost"
                         size="icon"
                         onClick={() => updateQuantity(item.id, item.quantity + 1, item.variantId)}
-                        className="h-7 w-7 bg-[var(--venue-button-bg,theme(colors.gold.400))] text-[var(--venue-button-text,#000)] hover:opacity-90"
+                        className="h-7 w-7 bg-[var(--venue-button-bg,theme(colors.brand.400))] text-[var(--venue-button-text,#000)] hover:opacity-90"
                       >
                         <Plus className="h-3.5 w-3.5" />
                       </Button>
@@ -209,7 +209,7 @@ export function TreatmentsSummaryPanel({
             'w-full h-12 rounded-full font-medium tracking-wide transition-all',
             isEmpty
               ? 'bg-gray-200 text-gray-400 hover:bg-gray-200 cursor-not-allowed'
-              : 'bg-[var(--venue-button-bg,theme(colors.gold.400))] text-[var(--venue-button-text,#000)] hover:opacity-90 shadow-sm',
+              : 'bg-[var(--venue-button-bg,theme(colors.brand.400))] text-[var(--venue-button-text,#000)] hover:opacity-90 shadow-sm',
           )}
         >
           {t('basket.continue')}

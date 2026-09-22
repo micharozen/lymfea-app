@@ -118,7 +118,7 @@ export function TreatmentVariantDrawer({
                   <button
                     type="button"
                     onClick={() => setDescExpanded((v) => !v)}
-                    className="ml-1 text-gold-600 hover:text-gold-700 underline-offset-2 hover:underline font-light"
+                    className="ml-1 text-brand-600 hover:text-brand-700 underline-offset-2 hover:underline font-light"
                   >
                     {descExpanded ? t('menu.readLess') : t('menu.readMore')}
                   </button>
@@ -179,7 +179,7 @@ export function TreatmentVariantDrawer({
                     className={cn(
                       'shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all',
                       isSelected
-                        ? 'border-gold-600 bg-gold-600'
+                        ? 'border-brand-600 bg-brand-600'
                         : 'border-gray-300 bg-white'
                     )}
                   >
@@ -202,7 +202,7 @@ export function TreatmentVariantDrawer({
             className={cn(
               'h-11 px-6 rounded-full font-medium tracking-wide transition-colors shrink-0 font-grotesk',
               selectedVariant
-                ? 'bg-[var(--venue-button-bg,theme(colors.gold.400))] text-[var(--venue-button-text,#000)] hover:opacity-90'
+                ? 'bg-[var(--venue-button-bg,theme(colors.brand.400))] text-[var(--venue-button-text,#000)] hover:opacity-90'
                 : 'bg-gray-200 text-gray-400 cursor-not-allowed'
             )}
           >

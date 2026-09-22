@@ -705,7 +705,7 @@ export function SchedulePanel({
       {/* Page headline */}
       {!embedded && (
         <div className="animate-fade-in">
-          <h3 className="text-[10px] uppercase tracking-[0.3em] text-gold-600 mb-3 font-semibold">
+          <h3 className="text-[10px] uppercase tracking-[0.3em] text-brand-600 mb-3 font-semibold">
             {t('datetime.stepLabel')}
           </h3>
           <h2 className="font-serif text-xl sm:text-2xl md:text-3xl text-gray-900 leading-tight">
@@ -940,7 +940,7 @@ export function SchedulePanel({
                   className={cn(
                     "flex flex-col items-center justify-center gap-0.5 py-3 min-h-[44px] rounded-lg text-sm transition-all duration-200",
                     selected
-                      ? "bg-gold-400 text-black font-medium"
+                      ? "bg-brand-400 text-black font-medium"
                       : timing === 'before'
                         ? "bg-gray-50 text-gray-900 font-light hover:bg-gray-100"
                         : "bg-stone-100 text-gray-900 font-light hover:bg-stone-200",

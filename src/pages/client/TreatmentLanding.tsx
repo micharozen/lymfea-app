@@ -200,7 +200,7 @@ export default function TreatmentLanding() {
         </p>
         <Button
           onClick={() => navigate(`/client/${slug}`)}
-          className="bg-[var(--venue-button-bg,theme(colors.gold.400))] text-[var(--venue-button-text,#000)] hover:opacity-90 font-medium"
+          className="bg-[var(--venue-button-bg,theme(colors.brand.400))] text-[var(--venue-button-text,#000)] hover:opacity-90 font-medium"
         >
           {t('treatmentDetail.seeAllTreatments')}
         </Button>
@@ -230,7 +230,7 @@ export default function TreatmentLanding() {
               <Button
                 variant="ghost"
                 onClick={() => navigate(`/client/${slug}/treatments`)}
-                className="h-9 px-2 gap-1.5 text-gray-900 hover:bg-gray-100 hover:text-gold-600 transition-colors"
+                className="h-9 px-2 gap-1.5 text-gray-900 hover:bg-gray-100 hover:text-brand-600 transition-colors"
               >
                 <ArrowLeft className="h-4 w-4" />
                 <span className="text-xs font-medium">
@@ -239,7 +239,7 @@ export default function TreatmentLanding() {
               </Button>
             </div>
 
-            <h1 className="absolute left-1/2 -translate-x-1/2 font-serif text-sm text-gold-600 tracking-wide leading-tight truncate max-w-[40%] text-center pointer-events-none">
+            <h1 className="absolute left-1/2 -translate-x-1/2 font-serif text-sm text-brand-600 tracking-wide leading-tight truncate max-w-[40%] text-center pointer-events-none">
               {localize(hotel?.name, hotel?.name_en)}
             </h1>
 
@@ -249,10 +249,10 @@ export default function TreatmentLanding() {
                   variant="ghost"
                   size="icon"
                   onClick={() => navigate(`/client/${slug}/treatments`)}
-                  className="relative text-gray-900 hover:bg-gray-100 hover:text-gold-600 transition-colors"
+                  className="relative text-gray-900 hover:bg-gray-100 hover:text-brand-600 transition-colors"
                 >
                   <ShoppingBag className="h-5 w-5" />
-                  <span className="absolute -top-1 -right-1 bg-gold-600 text-white text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center">
+                  <span className="absolute -top-1 -right-1 bg-brand-600 text-white text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center">
                     {itemCount}
                   </span>
                 </Button>
@@ -314,7 +314,7 @@ export default function TreatmentLanding() {
           treatment.image ? "pt-6" : "pt-8"
         )}>
           {/* Category badge */}
-          <span className="text-[10px] uppercase tracking-[0.2em] text-gold-600 font-semibold">
+          <span className="text-[10px] uppercase tracking-[0.2em] text-brand-600 font-semibold">
             {treatment.category}
           </span>
 
@@ -338,7 +338,7 @@ export default function TreatmentLanding() {
                   {t('treatmentDetail.price')}
                 </span>
                 {effectivePriceOnRequest ? (
-                  <span className="text-lg font-medium text-gold-600">
+                  <span className="text-lg font-medium text-brand-600">
                     {t('payment.onQuote')}
                   </span>
                 ) : isOffert ? (
@@ -406,7 +406,7 @@ export default function TreatmentLanding() {
             "w-full h-14 text-base font-medium tracking-wide shadow-lg transition-all duration-300",
             added
               ? "bg-emerald-500 text-white hover:bg-emerald-500"
-              : "bg-[var(--venue-button-bg,theme(colors.gold.400))] text-[var(--venue-button-text,#000)] hover:opacity-90"
+              : "bg-[var(--venue-button-bg,theme(colors.brand.400))] text-[var(--venue-button-text,#000)] hover:opacity-90"
           )}
         >
           <HandHeart className="mr-2 h-5 w-5" />

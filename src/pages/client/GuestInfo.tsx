@@ -85,7 +85,7 @@ const createClientInfoSchema = (t: TFunction, isCoworking: boolean, pmsGuestLook
 
 type ClientInfoFormData = z.infer<ReturnType<typeof createClientInfoSchema>>;
 
-const inputStyles = "h-12 bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400 rounded-lg focus:border-gold-500 focus:ring-gold-500/20";
+const inputStyles = "h-12 bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400 rounded-lg focus:border-brand-500 focus:ring-brand-500/20";
 const labelStyles = "text-gray-500 text-xs uppercase tracking-wider font-medium";
 
 /** « Je ne connais pas encore mon numéro de chambre » — rendue sous le champ
@@ -101,7 +101,7 @@ function RoomNumberUnknownCheckbox({ checked, onChange, label }: {
         type="checkbox"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
-        className="h-4 w-4 rounded border-gray-300 text-gold-600 focus:ring-gold-500"
+        className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
       />
       <span className="text-sm text-gray-500">{label}</span>
     </label>
@@ -460,10 +460,10 @@ export default function GuestInfo() {
               variant="ghost"
               size="icon"
               onClick={() => setIsCartOpen(true)}
-              className="relative text-gray-900 hover:bg-gray-100 hover:text-gold-600 transition-colors"
+              className="relative text-gray-900 hover:bg-gray-100 hover:text-brand-600 transition-colors"
             >
               <ShoppingBag className="h-5 w-5" />
-              <span className="absolute -top-1 -right-1 bg-gold-600 text-white text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center">
+              <span className="absolute -top-1 -right-1 bg-brand-600 text-white text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center">
                 {itemCount}
               </span>
             </Button>
@@ -598,7 +598,7 @@ export default function GuestInfo() {
 
                   {/* Buyer section divider */}
                   <div className="border-t border-gray-200 pt-6">
-                    <h3 className="text-[10px] uppercase tracking-[0.3em] text-gold-600 mb-4 font-semibold">
+                    <h3 className="text-[10px] uppercase tracking-[0.3em] text-brand-600 mb-4 font-semibold">
                       {t('info.purchaserSection')}
                     </h3>
                   </div>
@@ -689,7 +689,7 @@ export default function GuestInfo() {
                           <FormItem>
                             <FormLabel className={labelStyles}>{t('info.phone')}</FormLabel>
                             <FormControl>
-                              <div className="flex h-12 w-full items-center overflow-hidden rounded-lg border border-gray-200 bg-gray-50 focus-within:border-gold-500 focus-within:ring-1 focus-within:ring-gold-500/20">
+                              <div className="flex h-12 w-full items-center overflow-hidden rounded-lg border border-gray-200 bg-gray-50 focus-within:border-brand-500 focus-within:ring-1 focus-within:ring-brand-500/20">
                                 <Popover open={countryPopoverOpen} onOpenChange={setCountryPopoverOpen}>
                                   <PopoverTrigger asChild>
                                     <Button
@@ -729,7 +729,7 @@ export default function GuestInfo() {
                                           }}
                                           className={cn(
                                             "flex w-full items-center px-3 py-2 text-sm text-gray-900 hover:bg-gray-100",
-                                            form.watch('countryCode') === country.code && "bg-gold-500/10 text-gold-600"
+                                            form.watch('countryCode') === country.code && "bg-brand-500/10 text-brand-600"
                                           )}
                                         >
                                           <span className="w-8 shrink-0 text-base">{toFlagEmoji(country.flag)}</span>
@@ -764,7 +764,7 @@ export default function GuestInfo() {
                 <>
                   {/* Standard layout — regular bookings and cures */}
                   <div>
-                    <h3 className="text-[10px] uppercase tracking-[0.3em] text-gold-600 mb-3 font-semibold">
+                    <h3 className="text-[10px] uppercase tracking-[0.3em] text-brand-600 mb-3 font-semibold">
                       {t('info.stepLabel')}
                     </h3>
                     <h2 className="font-serif text-xl sm:text-2xl text-gray-900 leading-tight">
@@ -968,7 +968,7 @@ export default function GuestInfo() {
                           <FormItem>
                             <FormLabel className={labelStyles}>{t('info.phone')}</FormLabel>
                             <FormControl>
-                              <div className="flex h-12 w-full items-center overflow-hidden rounded-lg border border-gray-200 bg-gray-50 focus-within:border-gold-500 focus-within:ring-1 focus-within:ring-gold-500/20">
+                              <div className="flex h-12 w-full items-center overflow-hidden rounded-lg border border-gray-200 bg-gray-50 focus-within:border-brand-500 focus-within:ring-1 focus-within:ring-brand-500/20">
                                 <Popover open={countryPopoverOpen} onOpenChange={setCountryPopoverOpen}>
                                   <PopoverTrigger asChild>
                                     <Button
@@ -1008,7 +1008,7 @@ export default function GuestInfo() {
                                           }}
                                           className={cn(
                                             "flex w-full items-center px-3 py-2 text-sm text-gray-900 hover:bg-gray-100",
-                                            form.watch('countryCode') === country.code && "bg-gold-500/10 text-gold-600"
+                                            form.watch('countryCode') === country.code && "bg-brand-500/10 text-brand-600"
                                           )}
                                         >
                                           <span className="w-8 shrink-0 text-base">{toFlagEmoji(country.flag)}</span>
@@ -1053,7 +1053,7 @@ export default function GuestInfo() {
                                 setRoomNumberUnknown(false);
                               }
                             }}
-                            className="h-4 w-4 rounded border-gray-300 text-gold-600 focus:ring-gold-500"
+                            className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
                           />
                           <span className="text-sm text-gray-500">{t('info.isHotelGuest')}</span>
                         </label>
@@ -1106,7 +1106,7 @@ export default function GuestInfo() {
                             <Textarea
                               {...field}
                               placeholder={t('info.notePlaceholder')}
-                              className="bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400 rounded-lg focus:border-gold-500 focus:ring-gold-500/20 resize-none"
+                              className="bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400 rounded-lg focus:border-brand-500 focus:ring-brand-500/20 resize-none"
                               rows={3}
                             />
                           </FormControl>

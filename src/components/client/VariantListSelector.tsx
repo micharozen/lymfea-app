@@ -54,7 +54,7 @@ export function VariantListSelector({
             className={cn(
               'w-full flex items-center gap-4 px-4 py-3 rounded-xl border-2 text-left transition-all duration-200',
               isSelected
-                ? 'border-gold-500 bg-gold-50 shadow-sm'
+                ? 'border-brand-500 bg-brand-50 shadow-sm'
                 : 'border-gray-200 bg-white hover:border-gray-300'
             )}
           >
@@ -64,13 +64,13 @@ export function VariantListSelector({
                 <span
                   className={cn(
                     'text-sm font-medium truncate',
-                    isSelected ? 'text-gold-700' : 'text-gray-900'
+                    isSelected ? 'text-brand-700' : 'text-gray-900'
                   )}
                 >
                   {customLabel || '—'}
                 </span>
                 {variant.is_default && (
-                  <span className="shrink-0 text-[9px] uppercase tracking-wider text-gold-600 bg-gold-50 border border-gold-200 rounded-full px-1.5 py-0.5 font-medium">
+                  <span className="shrink-0 text-[9px] uppercase tracking-wider text-brand-600 bg-brand-50 border border-brand-200 rounded-full px-1.5 py-0.5 font-medium">
                     {t('menu.popular')}
                   </span>
                 )}
@@ -79,7 +79,7 @@ export function VariantListSelector({
                 <span
                   className={cn(
                     'text-sm mt-0.5',
-                    isSelected ? 'text-gold-600' : 'text-gray-500'
+                    isSelected ? 'text-brand-600' : 'text-gray-500'
                   )}
                 >
                   {variant.price_on_request
@@ -96,13 +96,13 @@ export function VariantListSelector({
               <span
                 className={cn(
                   'text-sm',
-                  isSelected ? 'text-gold-600' : 'text-gray-500'
+                  isSelected ? 'text-brand-600' : 'text-gray-500'
                 )}
               >
                 {variant.duration} min
               </span>
               {isSelected && (
-                <span className="bg-gold-600 rounded-full p-0.5">
+                <span className="bg-brand-600 rounded-full p-0.5">
                   <Check className="w-3 h-3 text-white" strokeWidth={3} />
                 </span>
               )}

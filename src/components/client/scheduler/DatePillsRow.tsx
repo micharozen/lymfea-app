@@ -63,7 +63,7 @@ export function DatePillsRow({
           className={cn(
             'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs transition-all duration-200',
             isCalendarOpen || selectedDate
-              ? 'border-gold-500 bg-gold-500/10 text-gold-600'
+              ? 'border-brand-500 bg-brand-500/10 text-brand-600'
               : 'border-gray-200 bg-gray-50 text-gray-500 hover:border-gray-300',
           )}
         >
@@ -157,7 +157,7 @@ export function DatePillsRow({
                       ? 'px-2.5 py-2.5 min-w-[60px]'
                       : 'px-3 py-3 sm:px-5 sm:py-4 min-w-[70px] sm:min-w-[90px]',
                     selectedDate === value
-                      ? 'border-gold-500 bg-gold-500/10'
+                      ? 'border-brand-500 bg-brand-500/10'
                       : !isClickable
                         ? 'border-gray-200 bg-gray-100/60 opacity-60 cursor-not-allowed'
                         : 'border-gray-200 bg-gray-50 hover:border-gray-300',
@@ -179,7 +179,7 @@ export function DatePillsRow({
                         'whitespace-nowrap',
                         embedded ? 'text-xs' : 'text-sm',
                         selectedDate === value
-                          ? 'text-gold-600 font-medium'
+                          ? 'text-brand-600 font-medium'
                           : !isClickable
                             ? 'text-gray-400 font-light line-through'
                             : 'text-gray-900 font-light',

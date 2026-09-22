@@ -49,10 +49,10 @@ export default function Schedule() {
               variant="ghost"
               size="icon"
               onClick={() => setIsCartOpen(true)}
-              className="relative text-gray-900 hover:bg-gray-100 hover:text-gold-600 transition-colors"
+              className="relative text-gray-900 hover:bg-gray-100 hover:text-brand-600 transition-colors"
             >
               <ShoppingBag className="h-5 w-5" />
-              <span className="absolute -top-1 -right-1 bg-gold-600 text-white text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center">
+              <span className="absolute -top-1 -right-1 bg-brand-600 text-white text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center">
                 {itemCount}
               </span>
             </Button>

@@ -20,7 +20,7 @@ export function ClientSpinner({ size = 'md', className }: ClientSpinnerProps) {
   return (
     <div
       className={cn(
-        "border-gold-500 border-t-transparent rounded-full animate-spin",
+        "border-brand-500 border-t-transparent rounded-full animate-spin",
         sizeMap[size],
         className
       )}

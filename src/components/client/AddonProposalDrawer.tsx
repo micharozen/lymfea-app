@@ -111,18 +111,18 @@ export function AddonProposalDrawer({
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="lymfea-client max-h-[92dvh] flex flex-col font-grotesk text-gray-900 bg-gradient-to-b from-gold-50 via-white to-white border-t border-gold-200/60">
-        <DrawerHeader className="text-left border-b border-gold-100 pb-5 relative bg-gold-50/40">
+      <DrawerContent className="lymfea-client max-h-[92dvh] flex flex-col font-grotesk text-gray-900 bg-gradient-to-b from-brand-50 via-white to-white border-t border-brand-200/60">
+        <DrawerHeader className="text-left border-b border-brand-100 pb-5 relative bg-brand-50/40">
           <button
             type="button"
             onClick={handleSkip}
-            className="absolute top-3 right-4 p-1.5 rounded-full text-gold-700/60 hover:text-gold-800 hover:bg-gold-100 transition-colors"
+            className="absolute top-3 right-4 p-1.5 rounded-full text-brand-700/60 hover:text-brand-800 hover:bg-brand-100 transition-colors"
             aria-label={t('schedule.addons.skip', 'Passer')}
           >
             <X className="h-5 w-5" />
           </button>
 
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gold-100/70 text-gold-800 text-[11px] font-medium tracking-wide uppercase mb-3">
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-brand-100/70 text-brand-800 text-[11px] font-medium tracking-wide uppercase mb-3">
             <Sparkles className="h-3 w-3" />
             {t('schedule.addons.badge', 'Prolongez votre parenthèse')}
           </div>
@@ -157,12 +157,12 @@ export function AddonProposalDrawer({
                   className={cn(
                     'group w-full flex items-stretch gap-3 p-3 text-left rounded-2xl border transition-all duration-200',
                     isSelected
-                      ? 'border-gold-500 bg-gold-50 shadow-[0_6px_20px_rgba(200,160,70,0.18)]'
-                      : 'border-gold-100 bg-white hover:border-gold-300 hover:bg-gold-50/40',
+                      ? 'border-brand-500 bg-brand-50 shadow-[0_6px_20px_rgba(200,160,70,0.18)]'
+                      : 'border-brand-100 bg-white hover:border-brand-300 hover:bg-brand-50/40',
                   )}
                 >
                   {addon.image ? (
-                    <div className="shrink-0 w-20 h-20 rounded-xl overflow-hidden bg-gold-50">
+                    <div className="shrink-0 w-20 h-20 rounded-xl overflow-hidden bg-brand-50">
                       <img
                         src={addon.image}
                         alt=""
@@ -171,8 +171,8 @@ export function AddonProposalDrawer({
                       />
                     </div>
                   ) : (
-                    <div className="shrink-0 w-20 h-20 rounded-xl bg-gradient-to-br from-gold-100 to-gold-50 flex items-center justify-center">
-                      <Sparkles className="h-5 w-5 text-gold-500" />
+                    <div className="shrink-0 w-20 h-20 rounded-xl bg-gradient-to-br from-brand-100 to-brand-50 flex items-center justify-center">
+                      <Sparkles className="h-5 w-5 text-brand-500" />
                     </div>
                   )}
 
@@ -185,7 +185,7 @@ export function AddonProposalDrawer({
                         <span
                           className={cn(
                             'shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all mt-0.5',
-                            isSelected ? 'border-gold-600 bg-gold-600' : 'border-gold-300 bg-white',
+                            isSelected ? 'border-brand-600 bg-brand-600' : 'border-brand-300 bg-white',
                           )}
                         >
                           {isSelected && (
@@ -201,9 +201,9 @@ export function AddonProposalDrawer({
                     </div>
 
                     <div className="flex items-center justify-between gap-2 mt-2">
-                      <div className="flex items-center gap-2 text-[11px] text-gold-700/80 font-medium">
+                      <div className="flex items-center gap-2 text-[11px] text-brand-700/80 font-medium">
                         {addon.duration ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gold-100/70">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-brand-100/70">
                             +{addon.duration} min
                           </span>
                         ) : null}
@@ -224,7 +224,7 @@ export function AddonProposalDrawer({
         </div>
 
         <div
-          className="border-t border-gold-100 px-4 pt-4 bg-white/90 backdrop-blur-sm"
+          className="border-t border-brand-100 px-4 pt-4 bg-white/90 backdrop-blur-sm"
           style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1.25rem)' }}
         >
           {count > 0 && (
@@ -259,7 +259,7 @@ export function AddonProposalDrawer({
               className={cn(
                 'h-11 px-5 rounded-full font-medium tracking-wide transition-colors shrink-0 font-grotesk',
                 count > 0
-                  ? 'bg-gold-500 text-black hover:bg-gold-400'
+                  ? 'bg-brand-500 text-black hover:bg-brand-400'
                   : 'bg-gray-200 text-gray-400 cursor-not-allowed',
               )}
             >

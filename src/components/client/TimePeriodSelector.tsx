@@ -107,7 +107,7 @@ export default function TimePeriodSelector({
               )}
             >
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 sm:w-8 sm:h-8 rounded-full bg-gray-50 flex items-center justify-center text-gold-600">
+                <div className="w-10 h-10 sm:w-8 sm:h-8 rounded-full bg-gray-50 flex items-center justify-center text-brand-600">
                   {period.icon}
                 </div>
                 <span className="text-gray-900 font-light">{t(period.labelKey)}</span>
@@ -137,7 +137,7 @@ export default function TimePeriodSelector({
                     className={cn(
                       "py-3 min-h-[44px] rounded-lg text-sm transition-all duration-200 relative",
                       selectedTime === slot.value
-                        ? "bg-gold-400 text-black font-medium"
+                        ? "bg-brand-400 text-black font-medium"
                         : slot.isOutOfHours
                           ? "bg-amber-50 text-gray-900 font-light hover:bg-amber-100 ring-1 ring-amber-200"
                           : "bg-gray-50 text-gray-900 font-light hover:bg-gray-100"

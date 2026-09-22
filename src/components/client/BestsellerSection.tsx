@@ -99,7 +99,7 @@ export function BestsellerSection({
 
     if (effectivePriceOnRequest) {
       return (
-        <Badge className="text-[8px] px-1 py-0.5 bg-gray-100 text-gold-600 border-gold-300/30 font-medium">
+        <Badge className="text-[8px] px-1 py-0.5 bg-gray-100 text-brand-600 border-brand-300/30 font-medium">
           {t('payment.onQuote')}
         </Badge>
       );
@@ -127,8 +127,8 @@ export function BestsellerSection({
       {/* Section Header */}
       <div className="px-5 pt-6 pb-3 lg:pt-3 lg:pb-1.5">
         <div className="flex items-center gap-2 mb-1 lg:mb-0">
-          <Sparkles className="w-3.5 h-3.5 text-gold-600" />
-          <span className="text-[10px] uppercase tracking-[0.2em] text-gold-600 font-semibold">
+          <Sparkles className="w-3.5 h-3.5 text-brand-600" />
+          <span className="text-[10px] uppercase tracking-[0.2em] text-brand-600 font-semibold">
             {t('menu.bestsellers')}
           </span>
         </div>
@@ -170,7 +170,7 @@ export function BestsellerSection({
 
               {/* Card body */}
               <div className="p-2 lg:p-2.5">
-                <p className="text-[7px] uppercase tracking-[0.1em] text-gold-600 font-medium mb-0.5">
+                <p className="text-[7px] uppercase tracking-[0.1em] text-brand-600 font-medium mb-0.5">
                   {treatment.category}
                 </p>
                 <h3 className="font-serif text-[11px] sm:text-xs text-gray-900 font-medium leading-tight mb-1.5 line-clamp-2 lg:line-clamp-1 lg:mb-1">
@@ -196,13 +196,13 @@ export function BestsellerSection({
                       >
                         <Minus className="h-3 w-3" />
                       </Button>
-                      <span className="text-center font-medium text-xs text-gold-600">
+                      <span className="text-center font-medium text-xs text-brand-600">
                         {quantity}
                       </span>
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-6 w-6 rounded-none bg-[var(--venue-button-bg,theme(colors.gold.400))] text-[var(--venue-button-text,#fff)] hover:opacity-90"
+                        className="h-6 w-6 rounded-none bg-[var(--venue-button-bg,theme(colors.brand.400))] text-[var(--venue-button-text,#fff)] hover:opacity-90"
                         onClick={(e) => {
                           e.stopPropagation();
                           const defaultVariant = getDefaultVariant(treatment);
@@ -219,7 +219,7 @@ export function BestsellerSection({
                         const defaultVariant = getDefaultVariant(treatment);
                         onAddToBasket(treatment, defaultVariant);
                       }}
-                      className="w-full h-5 lg:h-6 px-2 text-[8px] sm:text-[10px] lg:text-xs bg-[var(--venue-button-bg,theme(colors.gold.400))] text-[var(--venue-button-text,#000)] hover:opacity-90 font-medium font-grotesk border-none tracking-normal"
+                      className="w-full h-5 lg:h-6 px-2 text-[8px] sm:text-[10px] lg:text-xs bg-[var(--venue-button-bg,theme(colors.brand.400))] text-[var(--venue-button-text,#000)] hover:opacity-90 font-medium font-grotesk border-none tracking-normal"
                     >
                       {t('menu.select')}
                     </Button>

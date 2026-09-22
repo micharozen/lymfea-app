@@ -199,7 +199,7 @@ export function PromoCodeField({
           autoComplete="off"
           autoCapitalize="characters"
           autoFocus
-          className="flex-1 min-w-0 h-9 bg-gray-50 border-gray-200 text-gray-900 text-sm placeholder:text-gray-400 rounded-lg font-mono uppercase focus:border-gold-500 focus:ring-gold-500/20"
+          className="flex-1 min-w-0 h-9 bg-gray-50 border-gray-200 text-gray-900 text-sm placeholder:text-gray-400 rounded-lg font-mono uppercase focus:border-brand-500 focus:ring-brand-500/20"
           disabled={isChecking}
         />
         {/* Couleurs du lieu quand il en a, sinon le noir du tunnel — même

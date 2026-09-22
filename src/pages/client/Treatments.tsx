@@ -504,7 +504,7 @@ export default function Treatments() {
     }
     if (treatment.price_on_request) {
       return (
-        <Badge className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gold-600 border-gold-300/30 font-medium w-fit">
+        <Badge className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-brand-600 border-brand-300/30 font-medium w-fit">
           {t('payment.onQuote')}
         </Badge>
       );
@@ -528,7 +528,7 @@ export default function Treatments() {
     if (totalQty > 0) {
       return (
         <div className="flex items-center gap-2 bg-gray-100 rounded-md p-1 pl-2 border border-gray-200">
-          <span className="w-4 text-center font-medium text-sm text-gold-600">
+          <span className="w-4 text-center font-medium text-sm text-brand-600">
             {totalQty}
           </span>
           <div className="flex gap-1">
@@ -552,7 +552,7 @@ export default function Treatments() {
             <Button
               variant="ghost"
               size="icon"
-              className="h-10 w-10 sm:h-11 sm:w-11 bg-[var(--venue-button-bg,theme(colors.gold.400))] text-[var(--venue-button-text,#fff)] hover:opacity-90"
+              className="h-10 w-10 sm:h-11 sm:w-11 bg-[var(--venue-button-bg,theme(colors.brand.400))] text-[var(--venue-button-text,#fff)] hover:opacity-90"
               onClick={(e) => {
                 e.stopPropagation();
                 if (hasMultipleVariants(treatment)) {
@@ -582,7 +582,7 @@ export default function Treatments() {
             handleAddToBasket(treatment);
           }
         }}
-        className="h-11 w-11 rounded-full bg-[var(--venue-button-bg,theme(colors.gold.600))] text-[var(--venue-button-text,#fff)] hover:opacity-90 ring-1 ring-black/10 shadow-md transition-all duration-200"
+        className="h-11 w-11 rounded-full bg-[var(--venue-button-bg,theme(colors.brand.600))] text-[var(--venue-button-text,#fff)] hover:opacity-90 ring-1 ring-black/10 shadow-md transition-all duration-200"
       >
         <Plus className="h-5 w-5" strokeWidth={2.5} />
       </Button>
@@ -600,9 +600,9 @@ export default function Treatments() {
         className={cn(
           "p-4 transition-all group cursor-pointer bg-white rounded-xl",
           isSelected
-            ? "border-2 border-gold-500 shadow-md ring-1 ring-gold-300/40"
-            : "border border-gray-200 hover:border-gold-300 hover:shadow-sm",
-          isExpanded && !isSelected && "lg:bg-gray-50/80 bg-gray-50 border-gold-300",
+            ? "border-2 border-brand-500 shadow-md ring-1 ring-brand-300/40"
+            : "border border-gray-200 hover:border-brand-300 hover:shadow-sm",
+          isExpanded && !isSelected && "lg:bg-gray-50/80 bg-gray-50 border-brand-300",
           !isExpanded && "active:bg-black/5"
         )}
         onClick={() => {
@@ -681,12 +681,12 @@ export default function Treatments() {
               variant="ghost"
               size="icon"
               onClick={() => navigate(`/client/${slug}`)}
-              className="text-gray-900 hover:bg-gray-100 hover:text-gold-600 transition-colors"
+              className="text-gray-900 hover:bg-gray-100 hover:text-brand-600 transition-colors"
             >
               <ArrowLeft className="h-5 w-5" />
             </Button>
 
-            <h1 className="font-serif text-base sm:text-lg md:text-xl text-gold-600 tracking-wide text-center flex-1 px-2 leading-tight">
+            <h1 className="font-serif text-base sm:text-lg md:text-xl text-brand-600 tracking-wide text-center flex-1 px-2 leading-tight">
               {localize(hotel?.name, hotel?.name_en)}
             </h1>
 
@@ -696,10 +696,10 @@ export default function Treatments() {
                 variant="ghost"
                 size="icon"
                 onClick={() => setIsCartOpen(true)}
-                className="relative text-gray-900 hover:bg-gray-100 hover:text-gold-600 transition-colors"
+                className="relative text-gray-900 hover:bg-gray-100 hover:text-brand-600 transition-colors"
               >
                 <ShoppingBag className="h-5 w-5" />
-                <span className="absolute -top-1 -right-1 bg-gold-600 text-white text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center">
+                <span className="absolute -top-1 -right-1 bg-brand-600 text-white text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center">
                   {itemCount}
                 </span>
               </Button>
@@ -857,7 +857,7 @@ export default function Treatments() {
                     </div>
                     <ChevronDown
                       className={cn(
-                        "w-5 h-5 text-gold-600 transition-transform duration-200",
+                        "w-5 h-5 text-brand-600 transition-transform duration-200",
                         isCategoryExpanded(section.id) && "rotate-180"
                       )}
                     />
@@ -933,7 +933,7 @@ export default function Treatments() {
                 isDesktop ? setIsScheduleOpen(true) : navigate(`/client/${slug}/schedule`);
               }
             }}
-            className="w-full h-12 sm:h-14 md:h-16 text-base bg-[var(--venue-button-bg,theme(colors.gold.400))] text-[var(--venue-button-text,#000)] hover:opacity-90 font-medium tracking-wide shadow-lg transition-all duration-300"
+            className="w-full h-12 sm:h-14 md:h-16 text-base bg-[var(--venue-button-bg,theme(colors.brand.400))] text-[var(--venue-button-text,#000)] hover:opacity-90 font-medium tracking-wide shadow-lg transition-all duration-300"
           >
             {isBundleOnly ? (
               <>

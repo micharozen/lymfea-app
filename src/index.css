@@ -50,6 +50,24 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
+    /* Brand palette for the client booking flow (Tailwind `brand-*`).
+       RGB triplets, default = Eïa gold. Overridable per venue on .lymfea-client. */
+    --brand-50: 253 250 244;
+    --brand-100: 250 244 232;
+    --brand-200: 245 236 218;
+    --brand-300: 240 229 208;
+    --brand-400: 237 224 198;
+    --brand-500: 196 176 122;
+    --brand-600: 154 133 74;
+    --brand-700: 116 99 48;
+    --brand-800: 78 66 31;
+    --brand-900: 42 35 17;
+    /* Confirmation page accent (terracotta) + ink. */
+    --brand-accent: 201 106 67;
+    --brand-accent-strong: 168 84 47;
+    --brand-accent-soft: 243 226 214;
+    --brand-ink: 44 38 34;
+
     --background: 28 40% 98%;
     --foreground: 20 15% 15%;
 

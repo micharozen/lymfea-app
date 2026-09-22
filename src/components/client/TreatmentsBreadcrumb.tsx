@@ -30,7 +30,7 @@ export function TreatmentsBreadcrumb({ currentStep, className }: TreatmentsBread
             <span
               className={cn(
                 'transition-colors',
-                isCurrent ? 'text-gold-600 font-medium' : 'text-gray-400',
+                isCurrent ? 'text-brand-600 font-medium' : 'text-gray-400',
               )}
             >
               {t(`breadcrumb.${step}`)}

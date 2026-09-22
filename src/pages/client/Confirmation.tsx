@@ -173,21 +173,21 @@ export default function Confirmation() {
         : t('confirmation.message', 'Finalisation de votre réservation...');
 
     return (
-      <div className="min-h-screen bg-[#FBF7F2] text-[#2C2622] flex flex-col items-center justify-center px-6 py-10">
+      <div className="min-h-screen bg-[#FBF7F2] text-brand-ink flex flex-col items-center justify-center px-6 py-10">
         <div className="w-full max-w-[440px] flex flex-col items-center text-center">
-          <span className="font-serif italic text-[32px] leading-none tracking-[0.02em] text-[#2C2622]">{venueName}</span>
+          <span className="font-serif italic text-[32px] leading-none tracking-[0.02em] text-brand-ink">{venueName}</span>
 
           <div className="mt-10 relative h-16 w-16 flex items-center justify-center">
             <span className="absolute inset-0 rounded-full border border-[#E8DFD2]" />
-            <span className="absolute inset-0 rounded-full border-2 border-transparent border-t-[#C96A43] animate-spin" style={{ animationDuration: '1.2s' }} />
-            <span className="h-1.5 w-1.5 rounded-full bg-[#C96A43]" />
+            <span className="absolute inset-0 rounded-full border-2 border-transparent border-t-brand-accent animate-spin" style={{ animationDuration: '1.2s' }} />
+            <span className="h-1.5 w-1.5 rounded-full bg-brand-accent" />
           </div>
 
-          <div className="mt-10 text-[10px] tracking-[0.28em] uppercase text-[#C96A43] font-medium">
+          <div className="mt-10 text-[10px] tracking-[0.28em] uppercase text-brand-accent font-medium">
             {t('confirmation.eyebrowPending', 'Un instant')}
           </div>
 
-          <h1 className="mt-4 font-serif text-[26px] sm:text-[32px] font-normal leading-[1.2] tracking-[-0.01em] text-[#2C2622]">
+          <h1 className="mt-4 font-serif text-[26px] sm:text-[32px] font-normal leading-[1.2] tracking-[-0.01em] text-brand-ink">
             {loadingText}
           </h1>
 
@@ -470,29 +470,29 @@ export default function Confirmation() {
   const timeLabel = bookingTime ? bookingTime.substring(0, 5) : t('confirmation.timeToConfirm');
 
   return (
-    <div className="min-h-screen bg-[#FBF7F2] text-[#2C2622] flex flex-col items-center px-4 py-8 sm:py-10">
+    <div className="min-h-screen bg-[#FBF7F2] text-brand-ink flex flex-col items-center px-4 py-8 sm:py-10">
       <div className="w-full max-w-[600px] bg-white border border-[#E8DFD2] rounded-sm animate-in fade-in slide-in-from-bottom-4 duration-700">
 
         {/* Header */}
         <div className="px-6 sm:px-12 pt-8 sm:pt-9 text-center">
-          <span className="font-serif text-[32px] leading-none tracking-[0.02em] text-[#2C2622]">{hotelName}</span>
+          <span className="font-serif text-[32px] leading-none tracking-[0.02em] text-brand-ink">{hotelName}</span>
           {organizationName && (
             <div className="mt-3 text-[12px] tracking-[0.18em] uppercase text-[#8C827B] font-medium">
               {organizationName}
             </div>
           )}
-          <div className="mt-3 text-[10px] tracking-[0.28em] uppercase text-[#C96A43] font-medium">
+          <div className="mt-3 text-[10px] tracking-[0.28em] uppercase text-brand-accent font-medium">
             {t('confirmation.newBooking')}
           </div>
         </div>
 
         {/* Title */}
         <div className="px-6 sm:px-12 pt-7 text-center">
-          <h1 className="font-serif text-[28px] sm:text-[36px] font-normal leading-[1.15] tracking-[-0.01em] text-[#2C2622]">
+          <h1 className="font-serif text-[28px] sm:text-[36px] font-normal leading-[1.15] tracking-[-0.01em] text-brand-ink">
             {firstName ? (
               <>
                 {currentLanguage === 'fr' ? 'Merci,' : 'Thank you,'}{' '}
-                <em className="italic text-[#C96A43]">{firstName}</em>.
+                <em className="italic text-brand-accent">{firstName}</em>.
               </>
             ) : (
               t('confirmation.thanksAnonymous')
@@ -506,7 +506,7 @@ export default function Confirmation() {
         {/* Status pill */}
         <div className="px-6 sm:px-12 pt-5 text-center">
           <span className={`inline-block text-[11px] tracking-[0.22em] uppercase font-medium px-5 py-2.5 rounded-full ${
-            isPending ? 'bg-[#F3E2D6] text-[#A8542F]' : 'bg-green-50 text-green-700'
+            isPending ? 'bg-brand-accent-soft text-brand-accent-strong' : 'bg-green-50 text-green-700'
           }`}>
             {pillLabel}
           </span>
@@ -515,7 +515,7 @@ export default function Confirmation() {
         {/* Booking summary */}
         <div className="px-6 sm:px-12 pt-7">
           <div className="bg-[#F8F3EC] border border-[#E8DFD2] rounded-sm px-5 sm:px-6 py-5">
-            <div className="text-[10px] tracking-[0.28em] uppercase text-[#C96A43] font-medium pb-2">
+            <div className="text-[10px] tracking-[0.28em] uppercase text-brand-accent font-medium pb-2">
               {t('confirmation.yourRequest')}
             </div>
             <dl className="divide-y divide-[#EFE7DA]">
@@ -529,9 +529,9 @@ export default function Confirmation() {
                       <dt className="text-[10px] tracking-[0.22em] uppercase text-[#8C827B] min-w-0 pt-0.5 leading-relaxed">
                         {gb.treatmentName}
                       </dt>
-                      <dd className="font-serif text-[13px] sm:text-[15px] text-[#2C2622] text-right shrink-0">
+                      <dd className="font-serif text-[13px] sm:text-[15px] text-brand-ink text-right shrink-0">
                         <span className="block">{gbDate}</span>
-                        <span className="text-[#C96A43]">{gbTime}</span>
+                        <span className="text-brand-accent">{gbTime}</span>
                       </dd>
                     </div>
                   );
@@ -541,22 +541,22 @@ export default function Confirmation() {
                 <>
                   <div className="flex items-center justify-between gap-4 py-3">
                     <dt className="text-[10px] tracking-[0.22em] uppercase text-[#8C827B] shrink-0">{t('confirmation.date')}</dt>
-                    <dd className="font-serif text-[15px] sm:text-[16px] text-[#2C2622] text-right">{dateLabel}</dd>
+                    <dd className="font-serif text-[15px] sm:text-[16px] text-brand-ink text-right">{dateLabel}</dd>
                   </div>
                   <div className="flex items-center justify-between gap-4 py-3">
                     <dt className="text-[10px] tracking-[0.22em] uppercase text-[#8C827B] shrink-0">{t('confirmation.time')}</dt>
-                    <dd className="font-serif text-[15px] sm:text-[16px] text-[#C96A43] text-right">{timeLabel}</dd>
+                    <dd className="font-serif text-[15px] sm:text-[16px] text-brand-accent text-right">{timeLabel}</dd>
                   </div>
                 </>
               )}
               <div className="flex items-center justify-between gap-4 py-3">
                 <dt className="text-[10px] tracking-[0.22em] uppercase text-[#8C827B] shrink-0">{t('confirmation.venue')}</dt>
-                <dd className="font-serif text-[15px] sm:text-[16px] text-[#2C2622] text-right break-words">{venueLine}</dd>
+                <dd className="font-serif text-[15px] sm:text-[16px] text-brand-ink text-right break-words">{venueLine}</dd>
               </div>
               {!groupBookings && (
                 <div className="flex items-center justify-between gap-4 py-3">
                   <dt className="text-[10px] tracking-[0.22em] uppercase text-[#8C827B] shrink-0">{isAmenityOnly ? t('confirmation.amenityTreatment') : t('confirmation.treatment')}</dt>
-                  <dd className="font-serif text-[15px] sm:text-[16px] text-[#2C2622] text-right break-words">{treatmentNames}</dd>
+                  <dd className="font-serif text-[15px] sm:text-[16px] text-brand-ink text-right break-words">{treatmentNames}</dd>
                 </div>
               )}
             </dl>
@@ -572,8 +572,8 @@ export default function Confirmation() {
             <ol className="space-y-3">
               {[t('confirmation.step1'), t('confirmation.step2')].map((step, i) => (
                 <li key={i} className="flex items-start gap-3.5">
-                  <span className="font-serif italic text-[13px] text-[#C96A43] pt-0.5 w-6 shrink-0">0{i + 1}</span>
-                  <span className="text-[13px] leading-[1.6] text-[#2C2622]">{step}</span>
+                  <span className="font-serif italic text-[13px] text-brand-accent pt-0.5 w-6 shrink-0">0{i + 1}</span>
+                  <span className="text-[13px] leading-[1.6] text-brand-ink">{step}</span>
                 </li>
               ))}
             </ol>
@@ -636,7 +636,7 @@ export default function Confirmation() {
         ) : null}
 
         <div className="pt-2 text-center">
-          <Button onClick={handleReturnHome} className="h-10 px-6 bg-[#2C2622] hover:bg-[#2C2622]/90 text-white rounded-sm text-xs font-medium tracking-[0.16em] uppercase transition-all active:scale-[0.98]">
+          <Button onClick={handleReturnHome} className="h-10 px-6 bg-brand-ink hover:bg-brand-ink/90 text-white rounded-sm text-xs font-medium tracking-[0.16em] uppercase transition-all active:scale-[0.98]">
             {t('confirmation.bookAgain')}
           </Button>
         </div>

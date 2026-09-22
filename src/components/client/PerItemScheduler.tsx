@@ -326,7 +326,7 @@ function ItemSlotCard({
     <div
       className={cn(
         'border rounded-lg bg-white transition-colors',
-        slotComplete ? 'border-gold-200' : 'border-gray-200',
+        slotComplete ? 'border-brand-200' : 'border-gray-200',
       )}
     >
       <button
@@ -338,7 +338,7 @@ function ItemSlotCard({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             {slotComplete && (
-              <CheckCircle2 className="h-4 w-4 text-gold-500 shrink-0" aria-hidden />
+              <CheckCircle2 className="h-4 w-4 text-brand-500 shrink-0" aria-hidden />
             )}
             <div className="text-sm font-medium text-gray-900 truncate">{item.name}</div>
             {unitLabel && (
@@ -350,7 +350,7 @@ function ItemSlotCard({
             {item.variantLabel ? ` · ${item.variantLabel}` : ''}
           </div>
           {!isOpen && summaryLabel && (
-            <div className="text-xs text-gold-600 mt-1.5 font-medium">
+            <div className="text-xs text-brand-600 mt-1.5 font-medium">
               {summaryLabel}
             </div>
           )}

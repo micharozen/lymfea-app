@@ -369,7 +369,7 @@ export default function Welcome() {
     >
       <div className="flex gap-3">
         <div className={cn(
-          "w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0 rounded-sm overflow-hidden ring-1 group-active:ring-gold-500/50 transition-all",
+          "w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0 rounded-sm overflow-hidden ring-1 group-active:ring-brand-500/50 transition-all",
           "bg-gray-100 ring-gray-200"
         )}>
           {treatment.image ? (
@@ -407,7 +407,7 @@ export default function Welcome() {
             ) : (
               <div className="flex items-baseline gap-2 mt-0.5">
                 {treatment.price_on_request ? (
-                  <Badge className="text-[10px] px-1.5 py-0.5 font-medium w-fit bg-gray-100 text-gold-600 border-gold-300/30">
+                  <Badge className="text-[10px] px-1.5 py-0.5 font-medium w-fit bg-gray-100 text-brand-600 border-brand-300/30">
                     {t('payment.onQuote')}
                   </Badge>
                 ) : (
@@ -429,7 +429,7 @@ export default function Welcome() {
           {/* Quantity Controls */}
           {getItemQuantity(treatment.id) > 0 ? (
             <div className="flex items-center gap-2 rounded-md p-1 pl-2 border flex-shrink-0 bg-gray-100 border-gray-200">
-              <span className="w-4 text-center font-medium text-sm text-gold-600">
+              <span className="w-4 text-center font-medium text-sm text-brand-600">
                 {getItemQuantity(treatment.id)}
               </span>
               <div className="flex gap-1">
@@ -448,7 +448,7 @@ export default function Welcome() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-10 w-10 sm:h-11 sm:w-11 bg-[var(--venue-button-bg,theme(colors.gold.400))] text-[var(--venue-button-text,#000)] hover:opacity-90"
+                  className="h-10 w-10 sm:h-11 sm:w-11 bg-[var(--venue-button-bg,theme(colors.brand.400))] text-[var(--venue-button-text,#000)] hover:opacity-90"
                   onClick={(e) => {
                     e.stopPropagation();
                     handleAddToBasket(treatment);
@@ -464,7 +464,7 @@ export default function Welcome() {
                 e.stopPropagation();
                 handleAddToBasket(treatment);
               }}
-              className="px-4 h-10 sm:px-6 sm:h-9 text-[10px] uppercase tracking-[0.2em] bg-[var(--venue-button-bg,theme(colors.gold.400))] text-[var(--venue-button-text,#000)] hover:opacity-90 transition-all duration-300 font-bold border-none flex-shrink-0"
+              className="px-4 h-10 sm:px-6 sm:h-9 text-[10px] uppercase tracking-[0.2em] bg-[var(--venue-button-bg,theme(colors.brand.400))] text-[var(--venue-button-text,#000)] hover:opacity-90 transition-all duration-300 font-bold border-none flex-shrink-0"
             >
               {t('menu.select')}
             </Button>
@@ -490,7 +490,7 @@ export default function Welcome() {
         </div>
         <ChevronDown
           className={cn(
-            "w-5 h-5 text-gold-600 transition-transform duration-200",
+            "w-5 h-5 text-brand-600 transition-transform duration-200",
             expandedCategory === section.id && "rotate-180"
           )}
         />
@@ -540,20 +540,20 @@ export default function Welcome() {
                 className="h-10 w-10 sm:h-12 sm:w-12 md:h-14 md:w-14 mb-4 sm:mb-6 object-contain"
               />
             )}
-            <h3 className="text-[10px] uppercase tracking-[0.3em] text-gold-600 mb-4 font-semibold">
+            <h3 className="text-[10px] uppercase tracking-[0.3em] text-brand-600 mb-4 font-semibold">
               {venueTerms.exclusiveServiceLabel}
             </h3>
             <h1 className="font-serif text-2xl sm:text-3xl md:text-4xl lg:text-5xl leading-tight mb-4 text-white">
               {isEnterprise ? (
                 <>
-                  <span className="italic text-gold-200">{localize(hotel?.name, hotel?.name_en)}</span>
+                  <span className="italic text-brand-200">{localize(hotel?.name, hotel?.name_en)}</span>
                   <br />
                   {t('welcome.enterpriseWellnessTitle')}
                 </>
               ) : (
                 <>
                   {t('welcome.artOfHairdressing')} <br/>
-                  <span className="italic text-gold-200">{t('welcome.at')} {localize(hotel?.name, hotel?.name_en)}</span>
+                  <span className="italic text-brand-200">{t('welcome.at')} {localize(hotel?.name, hotel?.name_en)}</span>
                 </>
               )}
             </h1>
@@ -564,10 +564,10 @@ export default function Welcome() {
             </p>
             {isEnterprise && nextServiceDate && (
               <div className="mt-4 sm:mt-5 inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-white/10 border border-white/10">
-                <CalendarDays className="w-3.5 h-3.5 text-gold-600" />
+                <CalendarDays className="w-3.5 h-3.5 text-brand-600" />
                 <span className="text-xs text-white/80 font-medium">
                   {t('welcome.nextSession')}{' '}
-                  <span className="text-gold-300">
+                  <span className="text-brand-300">
                     {format(new Date(nextServiceDate + 'T00:00:00'), 'EEEE d MMMM', { locale: dateLocale })}
                   </span>
                 </span>
@@ -581,7 +581,7 @@ export default function Welcome() {
       {/* Reassurance Banner — commented out: not always accurate (spa rooms vs in-room) */}
       {/* {!isEnterprise && (
         <div className="px-4 py-3 bg-gray-50 flex items-center justify-center gap-2 border-b border-gray-100">
-          <Sparkles className="w-3 h-3 text-gold-600" />
+          <Sparkles className="w-3 h-3 text-brand-600" />
           <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-medium text-center">
             {venueTerms.disclaimer}
           </p>
