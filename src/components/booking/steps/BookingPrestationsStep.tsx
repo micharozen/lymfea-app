@@ -462,7 +462,7 @@ export function BookingPrestationsStep({
                       <Input
                         type="number"
                         min="0"
-                        step="0.01"
+                        step="0.001"
                         value={priceOverride ?? ''}
                         onChange={(e) =>
                           setLineOverride(
@@ -490,7 +490,7 @@ export function BookingPrestationsStep({
                 <Input
                   type="number"
                   min="0"
-                  step="0.01"
+                  step="0.001"
                   value={customPrice}
                   onChange={(e) => setCustomPrice(e.target.value)}
                   className="h-7 text-xs"
