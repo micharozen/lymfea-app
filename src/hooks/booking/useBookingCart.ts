@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { CartItem } from "@/components/booking/CreateBookingDialog.schema";
+import { roundPrice } from "@/lib/formatPrice";
 
 interface TreatmentVariant {
   id: string;
@@ -36,7 +37,7 @@ export function useBookingCart(treatments: Treatment[] | undefined) {
         d += (variant?.duration ?? t.duration ?? 0) * i.quantity;
       }
     });
-    return { totalPrice: p, totalDuration: d };
+    return { totalPrice: roundPrice(p), totalDuration: d };
   }, [cart, treatments]);
 
   const hasOnRequestService = useMemo(() => {

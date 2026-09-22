@@ -48,7 +48,7 @@ import { format } from "date-fns";
 import { useDateLocale } from "@/lib/dateLocale";
 import { X, CalendarIcon, ChevronDown, User, Plus, Minus, AlertTriangle, Globe, Loader2, Send, Pencil, Search, DoorOpen, UserX, ShoppingBag, Trash2 } from "lucide-react";
 import { cn, decodeHtmlEntities } from "@/lib/utils";
-import { formatPrice } from "@/lib/formatPrice";
+import { formatPrice, formatAmount, roundPrice } from "@/lib/formatPrice";
 import { getCurrentOffset } from "@/lib/timezones";
 import { composePhoneNumber, isPlaceholderPhone, splitPhoneNumber } from "@/lib/phone";
 import { Badge } from "@/components/ui/badge";
@@ -614,7 +614,7 @@ export default function EditBookingDialog({
       if (therapistCount > 1 && getBaseSessionCount(sessions) >= 2) {
         duration = buildComboDuoBookingParams(sessions).duration;
       }
-      setTotalPrice(price);
+      setTotalPrice(roundPrice(price));
       setTotalDuration(duration);
     } else {
       setTotalPrice(0);
@@ -2543,7 +2543,7 @@ export default function EditBookingDialog({
                                 <p className="text-sm font-medium leading-tight truncate">
                                   {getCartLineDisplayName(treatment, variantId)}
                                 </p>
-                                <p className="text-xs text-muted-foreground mt-0.5">{t("editBooking.cart.unitPrice", { price: unitPrice })}</p>
+                                <p className="text-xs text-muted-foreground mt-0.5">{t("editBooking.cart.unitPrice", { price: formatAmount(unitPrice) })}</p>
                               </div>
                               {!treatmentsDisabled && (
                                 <button
@@ -2577,7 +2577,7 @@ export default function EditBookingDialog({
                                   <Plus className="h-3.5 w-3.5" />
                                 </button>
                               </div>
-                              <span className="text-sm font-bold">{lineTotal}€</span>
+                              <span className="text-sm font-bold">{formatAmount(lineTotal)}€</span>
                             </div>
 
                             {canOverride && (
@@ -2591,7 +2591,7 @@ export default function EditBookingDialog({
                                 <Input
                                   type="number"
                                   min="0"
-                                  step="0.01"
+                                  step="0.001"
                                   value={priceOverride ?? ''}
                                   onChange={(e) =>
                                     setCart(prev => prev.map(x =>

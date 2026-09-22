@@ -1,4 +1,5 @@
 import type { CartItem } from "@/components/booking/CreateBookingDialog.schema";
+import { roundPrice } from "@/lib/formatPrice";
 
 export interface TreatmentVariant {
   id: string;
@@ -60,7 +61,9 @@ export interface CartLineDetail extends CartItem {
 }
 
 export function getCartLineTotalPrice(item: CartLineDetail): number {
-  return getCartLineUnitPrice(item.treatment, item.variantId, item.priceOverride) * item.quantity;
+  return roundPrice(
+    getCartLineUnitPrice(item.treatment, item.variantId, item.priceOverride) * item.quantity,
+  );
 }
 
 /** Payload shape for SendBookingNotificationDialog / BookingData.treatments */

@@ -157,7 +157,7 @@ export function TreatmentStep({
                     <input
                       type="number"
                       min="0"
-                      step="0.01"
+                      step="0.001"
                       value={priceOverride ?? ""}
                       onChange={(e) =>
                         setLineOverride(treatmentId, e.target.value === "" ? null : Number(e.target.value))
