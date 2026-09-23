@@ -794,9 +794,9 @@
     "error": "Impossible d'enregistrer votre réponse"
   },
   "tomorrow": {
-    "title": "Demain",
-    "subtitle": "{{count}} rendez-vous · {{hours}} de soins",
-    "subtitle_one": "{{count}} rendez-vous · {{hours}} de soins",
+    "title": "{{count}} rendez-vous demain",
+    "title_one": "{{count}} rendez-vous demain",
+    "subtitle": "{{hours}} de soins · début à {{start}}",
     "empty": "Aucun rendez-vous demain",
     "emptyHint": "Votre journée de demain est libre.",
     "gap": "{{duration}} de pause",
@@ -804,6 +804,7 @@
     "room": "Chambre {{room}}",
     "withColleague": "En duo avec {{name}}",
     "seen": "Planning vu",
-    "seenDone": "Planning confirmé"
+    "seenDone": "Planning confirmé",
+    "duo": "Duo"
   }
 }

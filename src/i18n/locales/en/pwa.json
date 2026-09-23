@@ -794,9 +794,9 @@
     "error": "Could not save your answer"
   },
   "tomorrow": {
-    "title": "Tomorrow",
-    "subtitle": "{{count}} appointments · {{hours}} of treatments",
-    "subtitle_one": "{{count}} appointment · {{hours}} of treatments",
+    "title": "{{count}} appointments tomorrow",
+    "title_one": "{{count}} appointment tomorrow",
+    "subtitle": "{{hours}} of treatments · starts at {{start}}",
     "empty": "No appointments tomorrow",
     "emptyHint": "Your day tomorrow is free.",
     "gap": "{{duration}} break",
@@ -804,6 +804,7 @@
     "room": "Room {{room}}",
     "withColleague": "Duo with {{name}}",
     "seen": "Schedule seen",
-    "seenDone": "Schedule confirmed"
+    "seenDone": "Schedule confirmed",
+    "duo": "Duo"
   }
 }
