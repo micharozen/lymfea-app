@@ -1321,6 +1321,33 @@
       },
       "acknowledge": "Mark as read",
       "view": "View booking"
+    },
+    "digest": {
+      "tab": "D-1 digest",
+      "title": "Next-day digest",
+      "description": "Notification sent every evening at 7 pm (venue time) with the next day's appointments.",
+      "dateLabel": "Day",
+      "empty": "No therapist is working that day.",
+      "columns": {
+        "therapist": "Therapist",
+        "bookings": "Appts",
+        "venues": "Venue(s)",
+        "firstSlot": "First appt",
+        "status": "Status",
+        "actions": ""
+      },
+      "status": {
+        "not_sent": "Not sent",
+        "sent": "Sent",
+        "opened": "Opened",
+        "confirmed": "Confirmed",
+        "failed": "Failed"
+      },
+      "resend": "Resend",
+      "resendAll": "Resend the {{count}} pending",
+      "resent": "Digest resent",
+      "resendError": "Resend failed",
+      "sendCount": "sent {{count}} times"
     }
   },
   "pms": {

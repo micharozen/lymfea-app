@@ -104,6 +104,7 @@ export const useOneSignal = () => {
       const allowedDomains = [
         'eiaspa.fr',
         'lymfea.fr',
+        'saoma.io',
         'localhost',
       ];
       const currentHost = window.location.hostname;
@@ -144,9 +145,16 @@ export const useOneSignal = () => {
       console.log('[OneSignal] User Agent:', navigator.userAgent);
       console.log('[OneSignal] Notification permission:', Notification.permission);
 
-      const appId = import.meta.env.VITE_ONESIGNAL_APP_ID;
+      // Une app OneSignal par domaine de PWA : app.eiaspa.fr (Eïa) et app.saoma.io
+      // (toutes les autres organisations). L'app n'accepte que son propre domaine.
+      const isSaomaHost = currentHost.endsWith('saoma.io');
+      const appId = isSaomaHost
+        ? import.meta.env.VITE_ONESIGNAL_SAOMA_APP_ID
+        : import.meta.env.VITE_ONESIGNAL_APP_ID;
       if (!appId) {
-        console.warn('[OneSignal] VITE_ONESIGNAL_APP_ID not set, skipping initialization');
+        console.warn(
+          `[OneSignal] ${isSaomaHost ? 'VITE_ONESIGNAL_SAOMA_APP_ID' : 'VITE_ONESIGNAL_APP_ID'} not set, skipping initialization`,
+        );
         return;
       }
       console.log('[OneSignal] App ID:', appId, '| Origin:', window.location.origin);
@@ -190,8 +198,10 @@ export const useOneSignal = () => {
             console.log('[OneSignal] Extracted URL:', url);
             
             if (url) {
-              // Handle both full URLs and relative paths
-              const path = url.startsWith('http') ? new URL(url).pathname : url;
+              // Handle both full URLs and relative paths. On garde la query
+              // string : les deep-links de rappel la portent (?src=, ?d=).
+              const parsed = url.startsWith('http') ? new URL(url) : null;
+              const path = parsed ? `${parsed.pathname}${parsed.search}` : url;
               console.log('[OneSignal] Path to navigate:', path);
               
               if (notificationClickHandler) {

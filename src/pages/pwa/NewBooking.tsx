@@ -3,6 +3,8 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { useCreateBookingMutation } from "@/hooks/booking/useCreateBookingMutation";
+import { useCurrentTherapist } from "@/hooks/pwa/useCurrentTherapist";
+import { useConciergeVenues } from "@/hooks/pwa/useConciergeVenues";
 import { BookingData } from "@/components/booking/PaymentLinkForm";
 import { BookingProgressBar } from "@/components/pwa/new-booking/BookingProgressBar";
 import { ClientInfoStep } from "@/components/pwa/new-booking/ClientInfoStep";
@@ -225,6 +227,12 @@ const PwaNewBooking = () => {
   }, [selectedHotelId, assignToOther]);
 
   const selectedHotel = hotels.find((h) => h.id === selectedHotelId);
+
+  // Modifier le prix d'une prestation est réservé aux thérapeutes qui gèrent
+  // aussi le lieu (concierge) : un thérapeute seul ne fixe pas ses tarifs.
+  const { data: me } = useCurrentTherapist();
+  const { data: conciergeHotelIds = [] } = useConciergeVenues(me?.userId);
+  const canEditPrices = conciergeHotelIds.includes(selectedHotelId);
   const currency = selectedHotel?.currency || "EUR";
 
   // Cart helpers
@@ -267,9 +275,11 @@ const PwaNewBooking = () => {
     () =>
       cart.map((item) => ({
         ...item,
+        // Un prix forcé ne survit pas à un lieu où l'on n'est pas concierge.
+        priceOverride: canEditPrices ? item.priceOverride : null,
         treatment: treatments.find((t) => t.id === item.treatmentId),
       })),
-    [cart, treatments]
+    [cart, treatments, canEditPrices]
   );
 
   const totalPrice = useMemo(
@@ -312,10 +322,10 @@ const PwaNewBooking = () => {
       cart.flatMap((item) =>
         Array.from({ length: item.quantity }, () => ({
           treatmentId: item.treatmentId,
-          priceOverride: item.priceOverride ?? null,
+          priceOverride: canEditPrices ? item.priceOverride ?? null : null,
         }))
       ),
-    [cart]
+    [cart, canEditPrices]
   );
 
   // Thérapeute effectivement associé à la réservation
@@ -551,6 +561,7 @@ const PwaNewBooking = () => {
               decrementCart={decrementCart}
               getCartQuantity={getCartQuantity}
               setLineOverride={setLineOverride}
+              canEditPrices={canEditPrices}
               onNext={handleNext}
             />
           )}

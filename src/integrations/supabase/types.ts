@@ -2214,31 +2214,37 @@ export type Database = {
       }
       notifications: {
         Row: {
+          acknowledged_at: string | null
           booking_id: string | null
           created_at: string
           id: string
           message: string
           read: boolean
+          target_date: string | null
           task_id: string | null
           type: string
           user_id: string
         }
         Insert: {
+          acknowledged_at?: string | null
           booking_id?: string | null
           created_at?: string
           id?: string
           message: string
           read?: boolean
+          target_date?: string | null
           task_id?: string | null
           type: string
           user_id: string
         }
         Update: {
+          acknowledged_at?: string | null
           booking_id?: string | null
           created_at?: string
           id?: string
           message?: string
           read?: boolean
+          target_date?: string | null
           task_id?: string | null
           type?: string
           user_id?: string
@@ -4414,6 +4420,24 @@ export type Database = {
       admin_can_access_therapist: {
         Args: { _therapist_id: string }
         Returns: boolean
+      }
+      admin_tomorrow_digests: {
+        Args: { p_organization_id?: string; p_target_date: string }
+        Returns: {
+          acknowledged_at: string
+          booking_count: number
+          first_booking_time: string
+          first_name: string
+          hotel_names: string[]
+          last_error: string
+          last_name: string
+          last_sent_at: string
+          profile_image: string
+          read_at: string
+          send_count: number
+          status: string
+          therapist_id: string
+        }[]
       }
       amenity_slot_conflict: {
         Args: {
