@@ -24,6 +24,12 @@ const DIGEST_TYPE = "daily_digest";
 const PUSH_TYPE = "digest_d1";
 const PAGE_SIZE = 1000;
 
+// La relance ciblée part du navigateur (onglet « Récap J-1 » de l'admin).
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
 const EXCLUDED_STATUSES = [
   "cancelled",
   "canceled",
@@ -155,6 +161,10 @@ function startInstant(b: BookingRow): number {
 }
 
 serve(async (req: Request) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
   try {
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -406,6 +416,6 @@ function buildCopy(count: number, firstTime: string, venues: string[], minutes: 
 function json(payload: unknown, status = 200): Response {
   return new Response(JSON.stringify(payload), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 }
