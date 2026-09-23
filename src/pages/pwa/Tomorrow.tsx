@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { addDays, format, parseISO } from "date-fns";
-import { fr as frLocale } from "date-fns/locale";
+import { enUS, fr as frLocale } from "date-fns/locale";
 import { Check, MapPin, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
@@ -144,26 +144,33 @@ const PwaTomorrow = () => {
   });
 
   const acknowledged = !!digest?.acknowledged_at;
+  // `startsWith` : la langue détectée peut valoir "fr-FR", que l'égalité stricte
+  // laissait retomber sur l'anglais.
   const dateLabel = format(parseISO(dateKey), "EEEE d MMMM", {
-    locale: i18n.language === "fr" ? frLocale : undefined,
+    locale: i18n.language?.startsWith("en") ? enUS : frLocale,
   });
 
   if (isLoading) return <PwaPageLoader />;
 
   return (
     <div className="flex flex-col min-h-full bg-background">
-      <PwaHeader title={t("tomorrow.title")} showBack backPath="/pwa/dashboard" />
+      {/* Le chiffre qui compte en premier : combien de réservations demain. */}
+      <PwaHeader
+        title={stops.length === 0 ? t("tomorrow.empty") : t("tomorrow.title", { count: stops.length })}
+        showBack
+        backPath="/pwa/dashboard"
+      />
 
       <div className="px-4 pt-5 pb-2">
         <h1 className="text-xl font-normal capitalize">{dateLabel}</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          {stops.length === 0
-            ? t("tomorrow.empty")
-            : t("tomorrow.subtitle", {
-                count: stops.length,
-                hours: formatLegMinutes(totalMinutes),
-              })}
-        </p>
+        {stops.length > 0 && (
+          <p className="text-sm text-muted-foreground mt-1">
+            {t("tomorrow.subtitle", {
+              hours: formatLegMinutes(totalMinutes),
+              start: stops[0].startTime,
+            })}
+          </p>
+        )}
       </div>
 
       {stops.length === 0 ? (
@@ -207,8 +214,16 @@ const PwaTomorrow = () => {
                   )}
                 >
                   <div className="flex items-baseline justify-between gap-3">
-                    <span className="text-base">
+                    <span className="text-base flex items-center gap-2">
                       {stop.startTime} — {stop.endTime}
+                      {/* Duo = plusieurs clientes au même créneau (guest_count),
+                          jamais déduit du statut. */}
+                      {(stop.booking.guest_count ?? 1) > 1 && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 text-primary text-[11px] px-2 py-0.5">
+                          <Users className="h-3 w-3" />
+                          {t("tomorrow.duo")}
+                        </span>
+                      )}
                     </span>
                     {stop.booking.hotel_name && (
                       <span className="text-xs text-muted-foreground flex items-center gap-1 min-w-0">
