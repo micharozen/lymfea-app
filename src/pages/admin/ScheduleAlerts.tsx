@@ -27,9 +27,11 @@ import {
   UserX,
   AlertTriangle,
   Trash2,
+  CalendarClock,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import TomorrowDigestPanel from "@/components/admin/TomorrowDigestPanel";
 import {
   Table,
   TableBody,
@@ -101,7 +103,9 @@ export default function ScheduleAlerts() {
   const [therapistFilter, setTherapistFilter] = useState("all");
   const [acknowledging, setAcknowledging] = useState<string | null>(null);
   const [searchParams] = useSearchParams();
-  const initialTab = searchParams.get("tab") === "notifications" ? "notifications" : "alerts";
+  const tabParam = searchParams.get("tab");
+  const initialTab =
+    tabParam === "notifications" || tabParam === "digest" ? tabParam : "alerts";
   const [activeTab, setActiveTab] = useState(initialTab);
 
   // Notifications state
@@ -434,9 +438,19 @@ export default function ScheduleAlerts() {
                 </span>
               )}
             </TabsTrigger>
+            <TabsTrigger value="digest" className="gap-1.5">
+              <CalendarClock className="h-3.5 w-3.5" />
+              {t("scheduleAlerts.digest.tab")}
+            </TabsTrigger>
           </TabsList>
         </Tabs>
       </div>
+
+      {activeTab === "digest" && (
+        <div className="flex-1 px-4 md:px-6 pb-4 md:pb-6 pt-4 overflow-y-auto">
+          <TomorrowDigestPanel />
+        </div>
+      )}
 
       {/* Notifications Tab */}
       {activeTab === "notifications" && (

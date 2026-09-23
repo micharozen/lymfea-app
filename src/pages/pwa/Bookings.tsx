@@ -15,6 +15,7 @@ import PwaCalendarView from "@/components/pwa/PwaCalendarView";
 import PwaDayView, { DayViewBooking } from "@/components/pwa/PwaDayView";
 import type { TherapistRates, TreatmentRateMap } from "@/lib/therapistEarnings";
 import { myLegSlot } from "@/lib/myLegSlot";
+import { isMyBooking } from "@/lib/pwaMyBooking";
 import { splitSharedBookingLegs } from "@/lib/sharedBookingLegs";
 import PwaPageLoader from "@/components/pwa/PageLoader";
 import { Button } from "@/components/ui/button";
@@ -44,19 +45,6 @@ const MIN_UPCOMING = 3;
 
 const VIEW_STORAGE_KEY = "pwa-bookings-view";
 const SELECTED_DATE_STORAGE_KEY = "pwa-calendar-date";
-
-/**
- * Réservation « à moi » dans l'agenda du lieu : elle m'est affectée, je porte
- * l'une de ses prestations (duo), ou j'ai accepté la demande de diffusion.
- */
-function isMyBooking(b: PwaBooking, therapistId: string | null | undefined): boolean {
-  if (!therapistId) return false;
-  if (b.therapist_id === therapistId) return true;
-  if ((b.booking_treatments ?? []).some((bt) => bt.therapist_id === therapistId)) return true;
-  return (b.booking_therapists ?? []).some(
-    (bt) => bt.therapist_id === therapistId && bt.status === "accepted",
-  );
-}
 
 const PwaBookings = () => {
   const { t } = useTranslation("pwa");

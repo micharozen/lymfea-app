@@ -792,5 +792,18 @@
     "thanksNok": "Merci, le problème a été signalé.",
     "noPendingTest": "Aucun test de notification en cours.",
     "error": "Impossible d'enregistrer votre réponse"
+  },
+  "tomorrow": {
+    "title": "Demain",
+    "subtitle": "{{count}} rendez-vous · {{hours}} de soins",
+    "subtitle_one": "{{count}} rendez-vous · {{hours}} de soins",
+    "empty": "Aucun rendez-vous demain",
+    "emptyHint": "Votre journée de demain est libre.",
+    "gap": "{{duration}} de pause",
+    "venueChange": "changement de lieu",
+    "room": "Chambre {{room}}",
+    "withColleague": "En duo avec {{name}}",
+    "seen": "Planning vu",
+    "seenDone": "Planning confirmé"
   }
 }

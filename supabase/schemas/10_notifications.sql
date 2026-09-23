@@ -5,6 +5,8 @@ CREATE TABLE IF NOT EXISTS "public"."notifications" (
     "type" "text" NOT NULL,
     "message" "text" NOT NULL,
     "read" boolean DEFAULT false NOT NULL,
+    "target_date" date,
+    "acknowledged_at" timestamp with time zone,
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL
 );
 
@@ -18,6 +20,9 @@ CREATE INDEX "idx_notifications_created_at" ON "public"."notifications" USING "b
 CREATE INDEX "idx_notifications_read" ON "public"."notifications" USING "btree" ("read");
 
 CREATE INDEX "idx_notifications_user_id" ON "public"."notifications" USING "btree" ("user_id");
+
+-- Verrou de déduplication de la synthèse J-1 : une seule par thérapeute et par journée.
+CREATE UNIQUE INDEX "uniq_notifications_daily_digest" ON "public"."notifications" ("user_id", "target_date") WHERE "type" = 'daily_digest';
 
 ALTER TABLE "public"."notifications" ENABLE ROW LEVEL SECURITY;
 

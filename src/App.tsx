@@ -106,6 +106,7 @@ const PaymentConfirmation = lazy(() => import("./pages/PaymentConfirmation"));
 const PwaLogin = lazy(() => import("./pages/pwa/Login"));
 const PwaDashboard = lazy(() => import("./pages/pwa/Dashboard"));
 const PwaBookings = lazy(() => import("./pages/pwa/Bookings"));
+const PwaTomorrow = lazy(() => import("./pages/pwa/Tomorrow"));
 const PwaBookingDetail = lazy(() => import("./pages/pwa/BookingDetail"));
 const PwaProfile = lazy(() => import("./pages/pwa/Profile"));
 const PwaAccountSecurity = lazy(() => import("./pages/pwa/AccountSecurity"));
@@ -424,6 +425,7 @@ const App = () => {
               <Route index element={<Navigate to="/pwa/dashboard" replace />} />
               <Route path="dashboard" element={<PwaDashboard />} />
               <Route path="bookings" element={<PwaBookings />} />
+              <Route path="tomorrow" element={<PwaTomorrow />} />
               <Route path="booking/:id" element={<PwaBookingDetail />} />
               <Route path="notifications" element={<PwaNotifications />} />
               <Route path="hotels" element={<PwaHotels />} />

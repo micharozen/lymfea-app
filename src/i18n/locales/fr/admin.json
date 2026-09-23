@@ -1321,6 +1321,33 @@
       },
       "acknowledge": "Marquer comme lu",
       "view": "Voir la réservation"
+    },
+    "digest": {
+      "tab": "Récap J-1",
+      "title": "Synthèse de la veille",
+      "description": "Notification envoyée chaque soir à 19 h (heure du lieu) avec les rendez-vous du lendemain.",
+      "dateLabel": "Journée",
+      "empty": "Aucun thérapeute ne travaille ce jour-là.",
+      "columns": {
+        "therapist": "Thérapeute",
+        "bookings": "RDV",
+        "venues": "Lieu(x)",
+        "firstSlot": "1er RDV",
+        "status": "Statut",
+        "actions": ""
+      },
+      "status": {
+        "not_sent": "Non envoyée",
+        "sent": "Envoyée",
+        "opened": "Ouverte",
+        "confirmed": "Confirmée",
+        "failed": "Échec"
+      },
+      "resend": "Relancer",
+      "resendAll": "Relancer les {{count}} en attente",
+      "resent": "Synthèse renvoyée",
+      "resendError": "Le renvoi a échoué",
+      "sendCount": "envoyée {{count}} fois"
     }
   },
   "pms": {

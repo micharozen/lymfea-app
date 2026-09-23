@@ -190,8 +190,10 @@ export const useOneSignal = () => {
             console.log('[OneSignal] Extracted URL:', url);
             
             if (url) {
-              // Handle both full URLs and relative paths
-              const path = url.startsWith('http') ? new URL(url).pathname : url;
+              // Handle both full URLs and relative paths. On garde la query
+              // string : les deep-links de rappel la portent (?src=, ?d=).
+              const parsed = url.startsWith('http') ? new URL(url) : null;
+              const path = parsed ? `${parsed.pathname}${parsed.search}` : url;
               console.log('[OneSignal] Path to navigate:', path);
               
               if (notificationClickHandler) {
