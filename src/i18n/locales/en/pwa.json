@@ -792,5 +792,18 @@
     "thanksNok": "Thanks, the issue has been reported.",
     "noPendingTest": "No notification test in progress.",
     "error": "Could not save your answer"
+  },
+  "tomorrow": {
+    "title": "Tomorrow",
+    "subtitle": "{{count}} appointments · {{hours}} of treatments",
+    "subtitle_one": "{{count}} appointment · {{hours}} of treatments",
+    "empty": "No appointments tomorrow",
+    "emptyHint": "Your day tomorrow is free.",
+    "gap": "{{duration}} break",
+    "venueChange": "venue change",
+    "room": "Room {{room}}",
+    "withColleague": "Duo with {{name}}",
+    "seen": "Schedule seen",
+    "seenDone": "Schedule confirmed"
   }
 }
