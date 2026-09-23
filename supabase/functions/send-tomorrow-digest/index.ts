@@ -16,7 +16,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { myLegDuration } from "../_shared/therapistLegDuration.ts";
-import { userIdFromAuthHeader, VenueAuthzError } from "../_shared/venue-authz.ts";
 import { venueLocalToUtc } from "../_shared/venue-time.ts";
 
 const SEND_LOCAL_HOUR = 19;
@@ -182,15 +181,27 @@ serve(async (req: Request) => {
     const dryRun = isLocal && body?.dryRun === true;
     const now = isLocal && typeof body?.now === "string" ? new Date(body.now) : new Date();
 
-    // Une relance ciblée peut venir d'un admin ; une tournée complète, non.
+    // La tournée horaire est ouverte : pg_cron l'appelle sans jeton exploitable
+    // (`app.settings.service_role_key` n'est définie sur aucun environnement).
+    // Elle est sans risque : elle n'envoie qu'aux fuseaux où il est 19 h, et le
+    // verrou de dédup interdit un second envoi. Tout ce qui cible ou force un
+    // envoi reste réservé à la service_role ou à un admin.
     const authHeader = req.headers.get("Authorization") ?? "";
     const isServiceRole = authHeader === `Bearer ${serviceRoleKey}`;
-    if (!isServiceRole) {
-      const userId = userIdFromAuthHeader(authHeader);
+    const isTargeted = forcedTherapistIds.length > 0 || force;
+    if (isTargeted && !isServiceRole) {
+      // verify_jwt = false : la passerelle ne valide plus le jeton, on le fait
+      // ici — décoder le `sub` sans vérifier la signature serait falsifiable.
+      const token = authHeader.replace(/^Bearer\s+/i, "");
+      const { data: userData, error: userError } = token
+        ? await supabase.auth.getUser(token)
+        : { data: { user: null }, error: null };
+      if (userError || !userData.user) return json({ error: "unauthorized" }, 401);
+
       const { data: roles } = await supabase
         .from("user_roles")
         .select("role")
-        .eq("user_id", userId);
+        .eq("user_id", userData.user.id);
       const isAdmin = (roles ?? []).some((r: { role: string }) => r.role === "admin");
       if (!isAdmin) return json({ error: "forbidden" }, 403);
       if (forcedTherapistIds.length === 0) {
@@ -390,9 +401,6 @@ serve(async (req: Request) => {
       ...(dryRun ? { dryRun: true, plan } : {}),
     });
   } catch (error) {
-    if (error instanceof VenueAuthzError) {
-      return json({ error: error.message }, error.status);
-    }
     console.error("[CRON] send-tomorrow-digest error:", error);
     return json({ error: error instanceof Error ? error.message : "Unknown error" }, 500);
   }
