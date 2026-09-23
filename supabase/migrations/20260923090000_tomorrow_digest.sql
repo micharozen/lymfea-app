@@ -157,6 +157,8 @@ $$;
 GRANT EXECUTE ON FUNCTION "public"."admin_tomorrow_digests"(date, "uuid") TO "authenticated", "service_role";
 
 -- Cron horaire : l'edge function ne retient que les fuseaux où il est 19 h local.
+-- URL de PRODUCTION (wvderlgzetpptehxndqf). Cette migration est destinée à main ;
+-- staging l'a appliquée avec son propre hôte (xfkujlgettlxdgrnqluw).
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron')
@@ -181,8 +183,8 @@ BEGIN
         ),
         body := '{}'::jsonb
       );
-    $sql$, 'https://xfkujlgettlxdgrnqluw.supabase.co/functions/v1/send-tomorrow-digest')
+    $sql$, 'https://wvderlgzetpptehxndqf.supabase.co/functions/v1/send-tomorrow-digest')
   );
 
-  RAISE WARNING 'Cron send-tomorrow-digest-hourly créé avec l''URL STAGING (xfkujlg…) — la corriger si cette base est la prod';
+  RAISE NOTICE 'Cron enregistré : send-tomorrow-digest-hourly (URL prod wvderlgz…)';
 END $$;
