@@ -33,6 +33,8 @@ interface TreatmentStepProps {
   decrementCart: (id: string) => void;
   getCartQuantity: (id: string) => number;
   setLineOverride: (id: string, value: number | null) => void;
+  /** Thérapeute également concierge du lieu : seul autorisé à modifier les prix. */
+  canEditPrices: boolean;
   onNext: () => void;
 }
 
@@ -48,6 +50,7 @@ export function TreatmentStep({
   decrementCart,
   getCartQuantity,
   setLineOverride,
+  canEditPrices,
   onNext,
 }: TreatmentStepProps) {
   const { t } = useTranslation("pwa");
@@ -137,7 +140,7 @@ export function TreatmentStep({
         )}
 
         {/* Édition des prix par prestation (fonctionnalité conservée) */}
-        {cartDetails.length > 0 && (
+        {canEditPrices && cartDetails.length > 0 && (
           <div className="price-override">
             <button type="button" className="po-toggle" onClick={() => setShowPriceOverrides((v) => !v)}>
               <Pencil size={12} />
