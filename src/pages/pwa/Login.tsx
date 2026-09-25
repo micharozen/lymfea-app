@@ -620,13 +620,20 @@ const PwaLogin = () => {
             <h1 className="text-2xl font-semibold mb-2">{t("login.password.title")}</h1>
             <p className="text-sm text-muted-foreground mb-8">{t("login.password.subtitle")}</p>
 
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handlePasswordLogin();
+              }}
+            >
             <div className="space-y-4 mb-6">
               <div className="space-y-2">
                 <Label htmlFor="email">{t("login.password.emailLabel")}</Label>
                 <Input
                   id="email"
+                  name="username"
                   type="email"
-                  autoComplete="email"
+                  autoComplete="username"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="hello@saoma.io"
@@ -639,15 +646,13 @@ const PwaLogin = () => {
                 <div className="relative">
                   <Input
                     id="password"
+                    name="password"
                     type={showPassword ? "text" : "password"}
                     autoComplete="current-password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
                     className="h-12 pr-10"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") handlePasswordLogin();
-                    }}
                   />
                   <button
                     type="button"
@@ -674,7 +679,7 @@ const PwaLogin = () => {
             </div>
 
             <Button
-              onClick={handlePasswordLogin}
+              type="submit"
               disabled={!email || !password || loading}
               className={cn(
                 "w-full h-12 rounded-full mb-4",
@@ -686,6 +691,7 @@ const PwaLogin = () => {
               {loading ? t("login.password.signingIn") : t("login.password.submit")}
               {loading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
             </Button>
+            </form>
 
             <div className="relative my-4">
               <div className="absolute inset-0 flex items-center">
