@@ -65,6 +65,8 @@ const Transactions = lazy(() => import("./pages/admin/Transactions"));
 const Analytics = lazy(() => import("./pages/admin/Analytics"));
 const Organizations = lazy(() => import("./pages/admin/Organizations"));
 const OrganizationDetail = lazy(() => import("./pages/admin/OrganizationDetail"));
+const OnboardingRequests = lazy(() => import("./pages/admin/OnboardingRequests"));
+const VenueSetup = lazy(() => import("./pages/setup/VenueSetup"));
 const Admins = lazy(() => import("./pages/admin/Admins"));
 const AdminDetail = lazy(() => import("./pages/admin/AdminDetail"));
 const AdminProfile = lazy(() => import("./pages/admin/Profile"));
@@ -370,6 +372,9 @@ const App = () => {
             {/* Onboarding (public — signup + post-Stripe-checkout landing) */}
             <Route path="/signup" element={<Signup />} />
             <Route path="/onboarding/complete" element={<OnboardingComplete />} />
+
+            {/* Venue setup wizard (public — shared link, token-scoped) */}
+            <Route path="/setup/:token" element={<VenueSetup />} />
             
             {/* Legacy route redirects to admin routes */}
             <Route path="/booking" element={<Navigate to="/admin/bookings" replace />} />
@@ -541,6 +546,7 @@ const App = () => {
                               <Route path="/support" element={<SupportTickets />} />
                               <Route path="/organizations" element={<Organizations />} />
                               <Route path="/organizations/:id" element={<OrganizationDetail />} />
+                              <Route path="/onboarding-requests" element={<OnboardingRequests />} />
                               <Route path="/admins" element={<Admins />} />
                               <Route path="/admins/:id" element={<AdminDetail />} />
                               <Route path="/profile" element={<AdminProfile />} />

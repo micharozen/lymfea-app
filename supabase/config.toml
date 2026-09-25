@@ -59,6 +59,9 @@ verify_jwt = false
 [functions.check-admin-exists]
 verify_jwt = false
 
+[functions.venue-setup]
+verify_jwt = false
+
 [functions.send-otp]
 verify_jwt = false
 

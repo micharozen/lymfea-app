@@ -4689,5 +4689,47 @@
       "partnerBilling": "Paiement partenaire",
       "pendingRoomCharge": "Facturation chambre en attente"
     }
+  },
+  "venueSetup": {
+    "sectionTitle": "Onboarding de lieu",
+    "sectionDesc": "Liens publics à envoyer au lieu : il remplit le wizard, vous relisez puis importez dans cette organisation.",
+    "pageTitle": "Demandes d'onboarding",
+    "pageSubtitle": "Tous les wizards d'onboarding de lieu, toutes organisations confondues.",
+    "newLink": "Nouveau lien d'onboarding",
+    "empty": "Aucune demande d'onboarding.",
+    "submittedOn": "Soumis le {{date}}",
+    "createdOn": "Créé le {{date}}",
+    "status": {
+      "draft": "En cours",
+      "submitted": "Soumis",
+      "imported": "Importé",
+      "archived": "Archivé"
+    },
+    "copyLink": "Copier le lien",
+    "linkCopied": "Lien copié",
+    "linkCreated": "Lien créé et copié dans le presse-papiers",
+    "createFailed": "Impossible de créer le lien",
+    "label": "Nom du lieu ou du prospect",
+    "labelPlaceholder": "Ex. : Spa du Grand Hôtel",
+    "labelHint": "Visible par le lieu en haut du wizard.",
+    "createAndCopy": "Créer et copier le lien",
+    "venue": "Lieu",
+    "rooms": "Salles",
+    "amenities": "Espaces",
+    "team": "Équipe",
+    "archive": "Archiver",
+    "reopen": "Rouvrir",
+    "import": "Importer",
+    "openVenue": "Ouvrir le lieu",
+    "importConfirmTitle": "Importer cet onboarding ?",
+    "importConfirmText": "Le lieu « {{venue}} » sera créé en attente dans l'organisation « {{org}} », avec {{rooms}} salle(s) et {{team}} membre(s) d'équipe, qui recevront une invitation. L'identité légale de l'organisation sera complétée.",
+    "importDone": "Lieu importé — {{invited}} invitation(s) envoyée(s)",
+    "inviteFailed": "Invitation non envoyée à : {{emails}}. Renvoyez-la depuis la fiche concierge.",
+    "conciergesSkipped": "Déjà rattaché(s) à une autre organisation, ignoré(s) : {{emails}}",
+    "importFailed": "Échec de l'import : {{message}}",
+    "reopened": "Demande rouverte : le lieu peut de nouveau modifier ses réponses",
+    "archived": "Demande archivée",
+    "statusFailed": "Impossible de mettre à jour la demande",
+    "filesFailed": "{{count}} fichier(s) non copié(s) : ré-uploadez-les depuis la fiche du lieu."
   }
 }

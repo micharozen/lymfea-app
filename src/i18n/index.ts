@@ -15,6 +15,7 @@ import privacyFR from './locales/fr/privacy.json';
 import changelogFR from './locales/fr/changelog.json';
 import signatureFR from './locales/fr/signature.json';
 import supportFR from './locales/fr/support.json';
+import setupFR from './locales/fr/setup.json';
 
 import commonEN from './locales/en/common.json';
 import clientEN from './locales/en/client.json';
@@ -27,6 +28,7 @@ import privacyEN from './locales/en/privacy.json';
 import changelogEN from './locales/en/changelog.json';
 import signatureEN from './locales/en/signature.json';
 import supportEN from './locales/en/support.json';
+import setupEN from './locales/en/setup.json';
 
 const resources = {
   fr: {
@@ -41,6 +43,7 @@ const resources = {
     changelog: changelogFR,
     signature: signatureFR,
     support: supportFR,
+    setup: setupFR,
   },
   en: {
     common: commonEN,
@@ -54,6 +57,7 @@ const resources = {
     changelog: changelogEN,
     signature: signatureEN,
     support: supportEN,
+    setup: setupEN,
   },
 };
 
@@ -64,7 +68,7 @@ i18n
     resources,
     fallbackLng: 'en',
     defaultNS: 'common',
-    ns: ['common', 'client', 'pwa', 'admin', 'landing', 'compare', 'terms', 'privacy', 'changelog', 'signature', 'support'],
+    ns: ['common', 'client', 'pwa', 'admin', 'landing', 'compare', 'terms', 'privacy', 'changelog', 'signature', 'support', 'setup'],
     
     detection: {
       order: ['localStorage', 'navigator', 'htmlTag'],

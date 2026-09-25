@@ -26,6 +26,7 @@ const TYPE_LABEL_FR: Record<string, string> = {
   therapist_arrived: "Arrivée",
   noshow: "No-show",
   task_assigned: "Tâche assignée",
+  venue_setup_submitted: "Onboarding lieu",
 };
 
 const TYPE_LABEL_EN: Record<string, string> = {
@@ -34,6 +35,7 @@ const TYPE_LABEL_EN: Record<string, string> = {
   therapist_arrived: "Arrival",
   noshow: "No-show",
   task_assigned: "Task assigned",
+  venue_setup_submitted: "Venue onboarding",
 };
 
 const TYPE_COLOR: Record<string, string> = {
@@ -42,6 +44,7 @@ const TYPE_COLOR: Record<string, string> = {
   therapist_arrived: "bg-blue-500",
   noshow: "bg-amber-500",
   task_assigned: "bg-gold-500",
+  venue_setup_submitted: "bg-violet-500",
 };
 
 export function NotificationsBellButton({ className }: { className?: string }) {
@@ -116,7 +119,8 @@ export function NotificationsBellButton({ className }: { className?: string }) {
   const handleClick = async (notif: NotificationItem) => {
     if (!notif.read) await markRead(notif.id);
     setOpen(false);
-    if (notif.task_id) navigate(`/admin/tasks?task=${notif.task_id}`);
+    if (notif.type === "venue_setup_submitted") navigate("/admin/onboarding-requests");
+    else if (notif.task_id) navigate(`/admin/tasks?task=${notif.task_id}`);
     else if (notif.booking_id) navigate(`/admin/bookings/${notif.booking_id}`);
   };
 
