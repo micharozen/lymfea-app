@@ -44,7 +44,7 @@ export function RoomsStep({ state, formId, onSave }: StepProps) {
               <Field label={t("rooms.name")} required error={e?.name?.message}>
                 <Input placeholder={t("rooms.namePlaceholder", { n: i + 1 })} {...register(`treatment_rooms.${i}.name`)} />
               </Field>
-              <Field label={t("rooms.capacity")} error={e?.capacity?.message}>
+              <Field label={t("rooms.capacity")} required error={e?.capacity?.message}>
                 <Input type="number" min={1} max={10} {...register(`treatment_rooms.${i}.capacity`, { setValueAs: toNumOrNull })} />
               </Field>
               <Button type="button" variant="ghost" size="icon" aria-label={t("common.remove")} onClick={() => remove(i)}>

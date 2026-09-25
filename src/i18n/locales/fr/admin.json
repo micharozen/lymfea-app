@@ -4730,6 +4730,8 @@
     "reopened": "Demande rouverte : le lieu peut de nouveau modifier ses réponses",
     "archived": "Demande archivée",
     "statusFailed": "Impossible de mettre à jour la demande",
-    "filesFailed": "{{count}} fichier(s) non copié(s) : ré-uploadez-les depuis la fiche du lieu."
+    "filesFailed": "{{count}} fichier(s) non copié(s) : ré-uploadez-les depuis la fiche du lieu.",
+    "importDraftWarning": "Le lieu n'a pas encore soumis ses réponses : après l'import, son lien sera verrouillé et il ne pourra plus rien modifier.",
+    "importNeedsName": "Import impossible tant que le nom du lieu n'est pas renseigné (étape Lieu)."
   }
 }

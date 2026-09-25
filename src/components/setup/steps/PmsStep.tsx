@@ -2,17 +2,19 @@ import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslation } from "react-i18next";
 import type { z } from "zod";
-import { Input } from "@/components/ui/input";
 import { pmsSchema } from "@/lib/venueSetup/schemas";
-import { ChoiceCards, Field, SectionTitle, SwitchRow } from "../SetupFields";
-import { boolOr, sectionObject, str, type StepProps } from "../types";
+import { ChoiceCards, Field, SwitchRow } from "../SetupFields";
+import { boolOr, sectionObject, type StepProps } from "../types";
 
 type Values = z.infer<typeof pmsSchema>;
+
+const pmsLogo = (src: string, alt: string) => (
+  <img src={src} alt={alt} className="h-6 w-6 rounded-md object-contain flex-shrink-0" />
+);
 
 export function PmsStep({ state, formId, onSave }: StepProps) {
   const { t } = useTranslation("setup");
   const h = sectionObject(state, "hotel");
-  const c = sectionObject(state, "pms_contact");
 
   const form = useForm<Values>({
     resolver: zodResolver(pmsSchema),
@@ -22,10 +24,9 @@ export function PmsStep({ state, formId, onSave }: StepProps) {
         pms_auto_charge_room: boolOr(h.pms_auto_charge_room, false),
         pms_guest_lookup_enabled: boolOr(h.pms_guest_lookup_enabled, false),
       },
-      pms_contact: { name: str(c.name), email: str(c.email), phone: str(c.phone) },
     },
   });
-  const { register, control, handleSubmit, watch, formState } = form;
+  const { control, handleSubmit, watch } = form;
   const hasPms = watch("hotel.pms_type") !== "none";
 
   return (
@@ -40,8 +41,8 @@ export function PmsStep({ state, formId, onSave }: StepProps) {
               onChange={field.onChange}
               columns={4}
               options={[
-                { value: "opera_cloud", label: "Oracle Opera Cloud" },
-                { value: "mews", label: "Mews" },
+                { value: "opera_cloud", label: "Oracle Opera Cloud", icon: pmsLogo("/images/logos/pms/oracle.png", "Oracle") },
+                { value: "mews", label: "Mews", icon: pmsLogo("/images/logos/pms/mews.svg", "Mews") },
                 { value: "other", label: t("pms.other") },
                 { value: "none", label: t("pms.none") },
               ]}
@@ -66,20 +67,6 @@ export function PmsStep({ state, formId, onSave }: StepProps) {
               <SwitchRow label={t("pms.guestLookup")} hint={t("pms.guestLookupHint")} checked={field.value} onChange={field.onChange} />
             )}
           />
-
-          <SectionTitle title={t("pms.contactTitle")} description={t("pms.contactDesc")} />
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Field label={t("fields.name")}>
-              <Input {...register("pms_contact.name")} />
-            </Field>
-            <Field label={t("fields.email")} error={formState.errors.pms_contact?.email?.message}>
-              <Input type="email" {...register("pms_contact.email")} />
-            </Field>
-            <Field label={t("fields.phone")}>
-              <Input type="tel" {...register("pms_contact.phone")} />
-            </Field>
-          </div>
-          <p className="text-xs text-muted-foreground rounded-lg bg-muted/50 p-3">{t("payment.noSecrets")}</p>
         </>
       )}
     </form>

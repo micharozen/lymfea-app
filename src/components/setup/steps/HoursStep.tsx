@@ -123,13 +123,13 @@ export function HoursStep({ state, formId, onSave }: StepProps) {
           return (
             <div key={f.id} className="rounded-lg border p-3 space-y-3">
               <div className="grid gap-3 grid-cols-2 sm:grid-cols-[1fr_110px_110px_auto] items-end">
-                <Field label={t("hours.closureLabel")} error={e?.label?.message} className="col-span-2 sm:col-span-1">
+                <Field label={t("hours.closureLabel")} required error={e?.label?.message} className="col-span-2 sm:col-span-1">
                   <Input placeholder={t("hours.closureLabelPlaceholder")} {...register(`venue_blocked_slots.${i}.label`)} />
                 </Field>
-                <Field label={t("hours.from")} error={e?.start_time?.message}>
+                <Field label={t("hours.from")} required error={e?.start_time?.message}>
                   <Input type="time" {...register(`venue_blocked_slots.${i}.start_time`)} />
                 </Field>
-                <Field label={t("hours.to")} error={e?.end_time?.message}>
+                <Field label={t("hours.to")} required error={e?.end_time?.message}>
                   <Input type="time" {...register(`venue_blocked_slots.${i}.end_time`)} />
                 </Field>
                 <Button type="button" variant="ghost" size="icon" aria-label={t("common.remove")} onClick={() => remove(i)}>

@@ -131,7 +131,9 @@ BEGIN
   IF NOT FOUND THEN
     RAISE EXCEPTION 'submission_not_found' USING ERRCODE = 'P0002';
   END IF;
-  IF v_sub.status <> 'submitted' OR v_sub.hotel_id IS NOT NULL THEN
+  -- A draft can be imported too (super-admin's call): the link locks as
+  -- soon as the status leaves 'draft'.
+  IF v_sub.status NOT IN ('draft', 'submitted') OR v_sub.hotel_id IS NOT NULL THEN
     RAISE EXCEPTION 'submission_not_importable (status=%)', v_sub.status
       USING ERRCODE = 'check_violation';
   END IF;

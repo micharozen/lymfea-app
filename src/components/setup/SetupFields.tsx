@@ -38,7 +38,7 @@ export function Field({ label, hint, error, required, htmlFor, className, childr
         {label}
         {required && <span className="text-destructive ml-0.5">*</span>}
         {!required && isTextControl && (
-          <span className="text-muted-foreground/70 text-xs ml-1.5">{t("optionalField")}</span>
+          <span className="text-muted-foreground/70 text-xs ml-1.5 whitespace-nowrap">{t("optionalField")}</span>
         )}
       </Label>
       {control}
@@ -79,7 +79,7 @@ export function SwitchRow({ label, hint, checked, onChange }: SwitchRowProps) {
 interface ChoiceCardsProps<T extends string> {
   value: T | undefined;
   onChange: (value: T) => void;
-  options: { value: T; label: string; hint?: string }[];
+  options: { value: T; label: string; hint?: string; icon?: ReactNode }[];
   columns?: 2 | 3 | 4;
 }
 
@@ -109,7 +109,10 @@ export function ChoiceCards<T extends string>({ value, onChange, options, column
             )}
           >
             <span className="flex items-center justify-between gap-2 text-sm">
-              {o.label}
+              <span className="flex items-center gap-2 min-w-0">
+                {o.icon}
+                {o.label}
+              </span>
               {selected && <Check className="h-4 w-4 flex-shrink-0" />}
             </span>
             {o.hint && <span className="block text-xs text-muted-foreground mt-0.5">{o.hint}</span>}

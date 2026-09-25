@@ -57,6 +57,9 @@ export function SubmissionDetailDialog({ submission, onOpenChange }: SubmissionD
 
   if (!submission) return null;
   const hotel = (data?.hotel ?? {}) as Record<string, unknown>;
+  const canImport = submission.status === "submitted" || submission.status === "draft";
+  const hasVenueName = typeof hotel.name === "string" && hotel.name.trim().length > 0;
+  const isDraft = submission.status === "draft";
 
   const runImport = () => {
     if (!data) return;
@@ -153,6 +156,9 @@ export function SubmissionDetailDialog({ submission, onOpenChange }: SubmissionD
             </div>
           )}
 
+          {canImport && data && !hasVenueName && (
+            <p className="text-xs text-muted-foreground text-right">{t("venueSetup.importNeedsName")}</p>
+          )}
           <div className="flex flex-wrap justify-end gap-2 pt-2 border-t">
             {submission.status !== "archived" && submission.status !== "imported" && (
               <Button variant="ghost" size="sm" onClick={() => setStatus("archived")} disabled={statusMutation.isPending}>
@@ -166,8 +172,13 @@ export function SubmissionDetailDialog({ submission, onOpenChange }: SubmissionD
                 {t("venueSetup.reopen")}
               </Button>
             )}
-            {submission.status === "submitted" && (
-              <Button size="sm" onClick={() => setConfirmImport(true)} disabled={!data || importMutation.isPending}>
+            {canImport && (
+              <Button
+                size="sm"
+                onClick={() => setConfirmImport(true)}
+                disabled={!data || !hasVenueName || importMutation.isPending}
+                title={!hasVenueName ? t("venueSetup.importNeedsName") : undefined}
+              >
                 {importMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                 {t("venueSetup.import")}
               </Button>
@@ -192,6 +203,7 @@ export function SubmissionDetailDialog({ submission, onOpenChange }: SubmissionD
                 rooms: data ? count(data, "treatment_rooms") : 0,
                 team: data ? count(data, "concierges") : 0,
               })}
+              {isDraft && <span className="block mt-2 text-destructive">{t("venueSetup.importDraftWarning")}</span>}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

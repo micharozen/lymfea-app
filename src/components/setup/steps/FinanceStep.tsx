@@ -54,7 +54,7 @@ export function FinanceStep({ state, formId, onSave }: StepProps) {
 
   return (
     <form id={formId} onSubmit={handleSubmit(submit)} className="space-y-5">
-      <div className="grid gap-4 grid-cols-2 sm:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2">
         <Field label={t("finance.currency")}>
           <Input maxLength={3} {...register("hotel.currency")} />
         </Field>

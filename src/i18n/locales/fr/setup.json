@@ -149,7 +149,9 @@
     "timezoneAuto": "Automatique",
     "access": "Instructions d'accès",
     "accessHint": "Étage, entrée, parking, vestiaires… Reprises dans les emails clients.",
-    "accessEn": "Instructions d'accès en anglais"
+    "accessEn": "Instructions d'accès en anglais",
+    "addressHint": "Commencez à taper puis choisissez l'adresse : code postal, ville et pays se remplissent tout seuls.",
+    "addressPlaceholder": "Ex. : 12 rue de la Paix, Paris"
   },
   "hours": {
     "opening": "Ouverture",
@@ -258,7 +260,6 @@
     "venueEntity": "Entité de facturation du lieu"
   },
   "payment": {
-    "noSecrets": "Ne saisissez jamais de mot de passe, clé API ou identifiant technique ici : nous organiserons ces connexions avec vous de façon sécurisée.",
     "laterTitle": "Rien à faire ici pour l'instant 🙂",
     "laterText": "Le paiement en ligne se connecte depuis votre espace admin, une fois votre lieu créé : en 2 clics, avec votre compte Stripe.",
     "docLink": "Voir la documentation Stripe Connect"
@@ -270,9 +271,7 @@
     "roomCharge": "Imputer les soins sur la note de chambre",
     "roomChargeHint": "Le montant est ajouté automatiquement à la facture du séjour.",
     "guestLookup": "Retrouver le client par son numéro de chambre",
-    "guestLookupHint": "Nom et coordonnées récupérés depuis le PMS.",
-    "contactTitle": "Contact informatique ou éditeur",
-    "contactDesc": "Nous verrons avec lui les accès."
+    "guestLookupHint": "Nom et coordonnées récupérés depuis le PMS."
   },
   "team": {
     "intro": "Chaque personne recevra une invitation par email une fois votre lieu validé.",

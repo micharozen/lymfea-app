@@ -7,10 +7,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { SelectField } from "@/components/ui/select-field";
 import { COUNTRY_OPTIONS, TIMEZONE_OPTIONS, getCountryDefaults } from "@/lib/timezones";
 import { venueSchema } from "@/lib/venueSetup/schemas";
+import { AddressAutocomplete, type ParsedAddress } from "@/components/onboarding/AddressAutocomplete";
 import { ChoiceCards, Field, SectionTitle } from "../SetupFields";
 import { sectionObject, str, type StepProps } from "../types";
 
 type Values = z.infer<typeof venueSchema>;
+
+/** Google returns the country name in the browser language; match it to our keys. */
+function countryKey(parsed: ParsedAddress): string | null {
+  const name = parsed.country.toLowerCase();
+  const option = COUNTRY_OPTIONS.find((c) => c.label.toLowerCase() === name || c.value === name);
+  return option?.value ?? null;
+}
 
 const TEXT_KEYS = [
   "name",
@@ -44,7 +52,16 @@ export function VenueStep({ state, formId, onSave }: StepProps) {
       } as Values["hotel"],
     },
   });
-  const { register, control, handleSubmit, formState } = form;
+  const { register, control, handleSubmit, formState, setValue } = form;
+
+  const applyPlace = (parsed: ParsedAddress) => {
+    const opts = { shouldDirty: true, shouldValidate: true };
+    if (parsed.streetLine || parsed.formatted) setValue("hotel.address", parsed.streetLine || parsed.formatted, opts);
+    if (parsed.postalCode) setValue("hotel.postal_code", parsed.postalCode, opts);
+    if (parsed.city) setValue("hotel.city", parsed.city, opts);
+    const country = countryKey(parsed);
+    if (country) setValue("hotel.country", country, opts);
+  };
   const e = formState.errors.hotel;
 
   const submit = (v: Values) => {
@@ -105,8 +122,21 @@ export function VenueStep({ state, formId, onSave }: StepProps) {
 
       <SectionTitle title={t("venue.addressTitle")} />
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label={t("fields.address")} required error={e?.address?.message} className="sm:col-span-2">
-          <Input {...register("hotel.address")} />
+        <Field label={t("fields.address")} required error={e?.address?.message} hint={t("venue.addressHint")} className="sm:col-span-2">
+          <Controller
+            control={control}
+            name="hotel.address"
+            render={({ field }) => (
+              <AddressAutocomplete
+                id="hotel-address"
+                value={field.value ?? ""}
+                placeholder={t("venue.addressPlaceholder")}
+                onChange={field.onChange}
+                includedPrimaryTypes={["street_address", "premise", "subpremise", "establishment"]}
+                onPlaceSelected={applyPlace}
+              />
+            )}
+          />
         </Field>
         <Field label={t("fields.postalCode")}>
           <Input {...register("hotel.postal_code")} />

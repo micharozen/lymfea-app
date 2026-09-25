@@ -149,7 +149,9 @@
     "timezoneAuto": "Automatic",
     "access": "Directions",
     "accessHint": "Floor, entrance, parking, changing rooms… Included in guest emails.",
-    "accessEn": "Directions in English"
+    "accessEn": "Directions in English",
+    "addressHint": "Start typing and pick the address: postal code, city and country fill in automatically.",
+    "addressPlaceholder": "e.g. 12 rue de la Paix, Paris"
   },
   "hours": {
     "opening": "Opening",
@@ -258,7 +260,6 @@
     "venueEntity": "Venue billing entity"
   },
   "payment": {
-    "noSecrets": "Never enter passwords, API keys or technical credentials here: we will set up these connections with you securely.",
     "laterTitle": "Nothing to do here for now 🙂",
     "laterText": "Online payment is connected from your admin space once your venue is created: in 2 clicks, with your Stripe account.",
     "docLink": "Read the Stripe Connect guide"
@@ -270,9 +271,7 @@
     "roomCharge": "Charge treatments to the room bill",
     "roomChargeHint": "The amount is added automatically to the stay invoice.",
     "guestLookup": "Find guests by room number",
-    "guestLookupHint": "Name and details retrieved from the PMS.",
-    "contactTitle": "IT or vendor contact",
-    "contactDesc": "We will arrange access with them."
+    "guestLookupHint": "Name and details retrieved from the PMS."
   },
   "team": {
     "intro": "Each person will receive an email invitation once your venue is approved.",

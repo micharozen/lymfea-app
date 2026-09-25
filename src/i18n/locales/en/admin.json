@@ -4730,6 +4730,8 @@
     "reopened": "Request reopened: the venue can edit its answers again",
     "archived": "Request archived",
     "statusFailed": "Could not update the request",
-    "filesFailed": "{{count}} file(s) not copied: re-upload them from the venue page."
+    "filesFailed": "{{count}} file(s) not copied: re-upload them from the venue page.",
+    "importDraftWarning": "The venue has not submitted yet: after the import, its link will be locked and it can no longer edit anything.",
+    "importNeedsName": "Cannot import until the venue name is filled in (Venue step)."
   }
 }

@@ -198,7 +198,6 @@ export const pmsSchema = z.object({
     pms_auto_charge_room: z.boolean(),
     pms_guest_lookup_enabled: z.boolean(),
   }),
-  pms_contact: z.object({ name: optText, email: optEmail, phone: optText }),
 });
 
 export const teamSchema = z.object({

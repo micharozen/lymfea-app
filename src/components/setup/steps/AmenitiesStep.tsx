@@ -64,7 +64,7 @@ export function AmenitiesStep({ state, formId, onSave }: StepProps) {
             </label>
             {enabled && (
               <div className="border-t p-3 space-y-3">
-                <div className="grid gap-3 grid-cols-2 sm:grid-cols-4">
+                <div className="grid gap-3 sm:grid-cols-2">
                   <Field label={t("amenities.capacity")}>
                     <Input type="number" min={1} {...num(i, "capacity_per_slot")} />
                   </Field>
@@ -97,7 +97,7 @@ export function AmenitiesStep({ state, formId, onSave }: StepProps) {
                     <SwitchRow label={t("amenities.included")} checked={field.value} onChange={field.onChange} />
                   )}
                 />
-                <div className="grid gap-3 grid-cols-2 sm:grid-cols-3">
+                <div className="grid gap-3 sm:grid-cols-3">
                   {included && (
                     <Field label={t("amenities.includedDuration")}>
                       <Input type="number" min={0} step={15} {...num(i, "lymfea_access_duration")} />
