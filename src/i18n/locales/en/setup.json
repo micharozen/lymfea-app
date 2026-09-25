@@ -352,11 +352,6 @@
     "text": "Enter the venue's website: our AI assistant pre-fills what it finds (presentation, address, opening hours, legal notice…). You then review each step.",
     "urlLabel": "Venue website",
     "button": "Pre-fill with AI",
-    "loading": {
-      "reading": "Reading your website…",
-      "legal": "Looking for legal notice and opening hours…",
-      "extracting": "Pre-filling the form…"
-    },
     "done": "{{count}} field(s) pre-filled from {{url}}.",
     "remaining": "{{count}} attempt(s) left.",
     "success": "{{count}} field(s) pre-filled: please review them at each step.",
@@ -365,6 +360,13 @@
       "limit": "Maximum number of pre-fills reached for this link.",
       "url": "Invalid website address.",
       "failed": "Could not read this website. You can fill in the form manually."
+    },
+    "pipeline": {
+      "search": "Looking up the website",
+      "pages": "Reading pages (spa, contact, access…)",
+      "legal": "Looking for the legal notice",
+      "registry": "Checking the official company register",
+      "fill": "Pre-filling the form"
     }
   }
 }

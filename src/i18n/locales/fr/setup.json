@@ -352,11 +352,6 @@
     "text": "Indiquez le site web du lieu : notre assistant IA pré-remplit ce qu'il y trouve (présentation, adresse, horaires, mentions légales…). Vous vérifiez ensuite chaque étape.",
     "urlLabel": "Site web du lieu",
     "button": "Pré-remplir avec l'IA",
-    "loading": {
-      "reading": "Lecture de votre site…",
-      "legal": "Recherche des mentions légales et des horaires…",
-      "extracting": "Pré-remplissage du formulaire…"
-    },
     "done": "{{count}} champ(s) pré-rempli(s) depuis {{url}}.",
     "remaining": "Encore {{count}} essai(s) possible(s).",
     "success": "{{count}} champ(s) pré-rempli(s) : vérifiez-les à chaque étape.",
@@ -365,6 +360,13 @@
       "limit": "Nombre maximum de pré-remplissages atteint pour ce lien.",
       "url": "Adresse du site invalide.",
       "failed": "Impossible de lire ce site. Vous pouvez remplir le formulaire manuellement."
+    },
+    "pipeline": {
+      "search": "Recherche du site",
+      "pages": "Lecture des pages (spa, contact, accès…)",
+      "legal": "Recherche des mentions légales",
+      "registry": "Vérification au registre officiel des entreprises",
+      "fill": "Pré-remplissage du formulaire"
     }
   }
 }

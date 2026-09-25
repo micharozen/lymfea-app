@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Globe, Loader2, Sparkles } from "lucide-react";
+import { Check, Globe, Loader2, Sparkles } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,12 +16,16 @@ interface WebsitePrefillProps {
   onDone: (filledCount: number) => void;
 }
 
-const LOADING_KEYS = ["reading", "legal", "extracting"] as const;
+// Cosmetic pipeline shown while the server works (one request end to end).
+const PIPELINE = ["search", "pages", "legal", "registry", "fill"] as const;
+const STEP_MS = 5000;
+const DONE_PAUSE_MS = 700;
 
 export function WebsitePrefill({ token, prefill, initialUrl, onDone }: WebsitePrefillProps) {
   const { t } = useTranslation("setup");
   const [url, setUrl] = useState(initialUrl ?? prefill?.url ?? "");
   const [running, setRunning] = useState(false);
+  // Index of the step in progress; PIPELINE.length once everything is done.
   const [phase, setPhase] = useState(0);
   const remaining = MAX_PREFILLS - (prefill?.count ?? 0);
 
@@ -28,10 +33,13 @@ export function WebsitePrefill({ token, prefill, initialUrl, onDone }: WebsitePr
     if (!url.trim() || running) return;
     setRunning(true);
     setPhase(0);
-    // Purely cosmetic progress messages while the server reads the site.
-    const timer = window.setInterval(() => setPhase((p) => Math.min(p + 1, LOADING_KEYS.length - 1)), 4000);
+    // The last step keeps spinning until the server answers.
+    const timer = window.setInterval(() => setPhase((p) => Math.min(p + 1, PIPELINE.length - 1)), STEP_MS);
     try {
       const res = await venueSetupApi.prefillFromWebsite(token, url.trim());
+      window.clearInterval(timer);
+      setPhase(PIPELINE.length);
+      await new Promise((r) => window.setTimeout(r, DONE_PAUSE_MS));
       onDone(res.filled.length);
     } catch (error) {
       const code = setupErrorCode(error);
@@ -80,9 +88,43 @@ export function WebsitePrefill({ token, prefill, initialUrl, onDone }: WebsitePr
       </div>
 
       {running && (
-        <p key={phase} className="text-xs text-muted-foreground animate-in fade-in duration-500">
-          {t(`prefill.loading.${LOADING_KEYS[phase]}`)}
-        </p>
+        <div className="space-y-3 animate-in fade-in slide-in-from-top-1 duration-300">
+          <div className="h-1 rounded-full bg-muted overflow-hidden">
+            <div
+              className="h-full rounded-full bg-primary transition-[width] duration-1000 ease-out"
+              style={{ width: `${Math.round(((phase + (phase < PIPELINE.length ? 0.5 : 0)) / PIPELINE.length) * 100)}%` }}
+            />
+          </div>
+          <ol className="space-y-2">
+            {PIPELINE.map((key, i) => {
+              const state = i < phase ? "done" : i === phase ? "active" : "pending";
+              return (
+                <li
+                  key={key}
+                  className={cn(
+                    "flex items-center gap-2.5 text-sm transition-colors duration-300",
+                    state === "pending" && "text-muted-foreground/50",
+                    state === "active" && "text-foreground",
+                    state === "done" && "text-muted-foreground",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "h-5 w-5 rounded-full flex items-center justify-center flex-shrink-0 border transition-all duration-300",
+                      state === "done" && "bg-primary border-primary text-primary-foreground",
+                      state === "active" && "border-primary",
+                    )}
+                  >
+                    {state === "done" && <Check className="h-3 w-3 animate-in zoom-in-50 duration-300" />}
+                    {state === "active" && <Loader2 className="h-3 w-3 animate-spin text-primary" />}
+                    {state === "pending" && <span className="text-[10px]">{i + 1}</span>}
+                  </span>
+                  <span className={cn(state === "active" && "animate-pulse")}>{t(`prefill.pipeline.${key}`)}</span>
+                </li>
+              );
+            })}
+          </ol>
+        </div>
       )}
       {!running && prefill && (
         <p className="text-xs text-muted-foreground">
