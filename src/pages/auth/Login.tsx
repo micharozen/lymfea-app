@@ -10,6 +10,21 @@ import { BRAND_NAME } from "@/components/landing/constants";
 import { getRoleRedirect } from "@/hooks/useRoleRedirect";
 import { DevLoginPanel } from "@/components/DevLoginPanel";
 
+// Garde l'identifiant dans le DOM aux étapes mot de passe : sans lui, les
+// gestionnaires de mots de passe (1Password…) ne rattachent pas le mot de passe à un compte.
+const HiddenUsernameField = ({ value }: { value: string }) => (
+  <input
+    type="text"
+    name="username"
+    autoComplete="username"
+    value={value}
+    readOnly
+    tabIndex={-1}
+    aria-hidden="true"
+    className="sr-only"
+  />
+);
+
 const Auth = () => {
   const [loginMethod, setLoginMethod] = useState<"email" | "phone">("email");
 
@@ -409,56 +424,74 @@ const Auth = () => {
 
           {/* Content based on step */}
           {step === "email" && (
-            <div className="space-y-5">
+            <form
+              className="space-y-5"
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleNext();
+              }}
+            >
               <div>
-                <label className="block text-sm font-medium text-foreground mb-1.5">
+                <label htmlFor="login-username" className="block text-sm font-medium text-foreground mb-1.5">
                   {loginMethod === "email" ? "Adresse email" : "Numero de telephone"}
                 </label>
                 <Input
+                  id="login-username"
+                  name="username"
+                  autoComplete="username"
                   type={loginMethod === "email" ? "email" : "tel"}
                   placeholder={loginMethod === "email" ? "vous@exemple.com" : "+33 6 12 34 56 78"}
                   value={emailOrPhone}
                   onChange={(e) => setEmailOrPhone(e.target.value)}
                   disabled={isLoading}
                   className="w-full h-12 text-base bg-muted/50 border-border focus-visible:ring-primary rounded-lg"
-                  onKeyDown={(e) => e.key === "Enter" && handleNext()}
                 />
               </div>
 
               <Button
-                onClick={handleNext}
+                type="submit"
                 disabled={isLoading}
                 className="w-full h-12 text-base font-medium rounded-lg"
               >
                 {isLoading ? "Chargement..." : "Continuer"}
                 {isLoading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
               </Button>
-            </div>
+            </form>
           )}
 
           {step === "signup" && (
-            <div className="space-y-5">
+            <form
+              className="space-y-5"
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleSignup();
+              }}
+            >
+              <HiddenUsernameField value={emailOrPhone} />
               <div>
                 <p className="text-sm text-muted-foreground mb-4">
                   Creer un compte pour <span className="font-medium text-foreground">{emailOrPhone}</span>
                 </p>
-                <label className="block text-sm font-medium text-foreground mb-1.5">
+                <label htmlFor="signup-password" className="block text-sm font-medium text-foreground mb-1.5">
                   Mot de passe
                 </label>
                 <Input
+                  id="signup-password"
+                  name="new-password"
+                  autoComplete="new-password"
                   type="password"
                   placeholder="Min. 6 caracteres"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={isLoading}
                   className="w-full h-12 text-base bg-muted/50 border-border focus-visible:ring-primary rounded-lg"
-                  onKeyDown={(e) => e.key === "Enter" && handleSignup()}
                   autoFocus
                 />
               </div>
 
               <div className="flex gap-3">
                 <Button
+                  type="button"
                   onClick={handleBack}
                   disabled={isLoading}
                   variant="outline"
@@ -467,7 +500,7 @@ const Auth = () => {
                   Retour
                 </Button>
                 <Button
-                  onClick={handleSignup}
+                  type="submit"
                   disabled={isLoading}
                   className="flex-1 h-12 text-base font-medium rounded-lg"
                 >
@@ -475,26 +508,35 @@ const Auth = () => {
                   {isLoading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
                 </Button>
               </div>
-            </div>
+            </form>
           )}
 
           {step === "password" && (
-            <div className="space-y-5">
+            <form
+              className="space-y-5"
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleLogin();
+              }}
+            >
+              <HiddenUsernameField value={emailOrPhone} />
               <div>
                 <p className="text-sm text-muted-foreground mb-4">
                   Connexion en tant que <span className="font-medium text-foreground">{emailOrPhone}</span>
                 </p>
-                <label className="block text-sm font-medium text-foreground mb-1.5">
+                <label htmlFor="login-password" className="block text-sm font-medium text-foreground mb-1.5">
                   Mot de passe
                 </label>
                 <Input
+                  id="login-password"
+                  name="password"
+                  autoComplete="current-password"
                   type="password"
                   placeholder="Votre mot de passe"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={isLoading}
                   className="w-full h-12 text-base bg-muted/50 border-border focus-visible:ring-primary rounded-lg"
-                  onKeyDown={(e) => e.key === "Enter" && handleLogin()}
                   autoFocus
                 />
                 <Link
@@ -507,6 +549,7 @@ const Auth = () => {
 
               <div className="flex gap-3">
                 <Button
+                  type="button"
                   onClick={handleBack}
                   disabled={isLoading}
                   variant="outline"
@@ -515,7 +558,7 @@ const Auth = () => {
                   Retour
                 </Button>
                 <Button
-                  onClick={handleLogin}
+                  type="submit"
                   disabled={isLoading}
                   className="flex-1 h-12 text-base font-medium rounded-lg"
                 >
@@ -523,7 +566,7 @@ const Auth = () => {
                   {isLoading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
                 </Button>
               </div>
-            </div>
+            </form>
           )}
 
           {step === "not-found" && (
@@ -542,6 +585,7 @@ const Auth = () => {
 
               <div className="flex gap-3">
                 <Button
+                  type="button"
                   onClick={handleBack}
                   disabled={isLoading}
                   variant="outline"
