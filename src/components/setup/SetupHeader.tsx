@@ -85,7 +85,9 @@ export function SetupHeader({ label, progress, topRef }: SetupHeaderProps) {
   return (
     <>
     <div ref={topRef} aria-hidden />
-    <header className="sticky top-0 z-20 bg-background/90 backdrop-blur border-b">
+    {/* Fixed (not sticky): always visible whatever the scroll container.
+        Heights are explicit so the spacer below matches exactly. */}
+    <header className="fixed top-0 inset-x-0 z-30 bg-background/95 backdrop-blur border-b">
       <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
           <img src={BRAND_LOGO} alt={BRAND_NAME} className="h-8 w-8 rounded-md object-cover flex-shrink-0" />
@@ -101,8 +103,8 @@ export function SetupHeader({ label, progress, topRef }: SetupHeaderProps) {
         </div>
       </div>
       {progress !== undefined && (
-        <div className="max-w-5xl mx-auto px-4 pb-2">
-          <div className="flex items-center gap-3">
+        <div className="max-w-5xl mx-auto px-4 h-6 flex items-start">
+          <div className="flex items-center gap-3 w-full">
             <div
               className="h-1.5 flex-1 rounded-full bg-muted overflow-hidden"
               role="progressbar"
@@ -122,6 +124,7 @@ export function SetupHeader({ label, progress, topRef }: SetupHeaderProps) {
         </div>
       )}
     </header>
+    <div aria-hidden className={progress !== undefined ? "h-[89px]" : "h-[65px]"} />
     </>
   );
 }

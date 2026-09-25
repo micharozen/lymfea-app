@@ -213,7 +213,7 @@ export default function VenueSetup() {
 
       <div className="max-w-5xl mx-auto px-4 py-6 md:grid md:grid-cols-[240px_1fr] md:gap-8">
         <nav className="hidden md:block">
-          <ol className="space-y-0.5 sticky top-28">
+          <ol className="space-y-0.5 sticky top-[113px]">
             {allPages.map((s, i) => (
               <li key={s}>
                 <button
