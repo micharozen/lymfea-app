@@ -74,7 +74,8 @@
     "color": "Color as #RRGGBB",
     "locked": "This form has already been submitted and can no longer be edited.",
     "saveFailed": "Saving failed, please try again.",
-    "submitFailed": "Sending failed, please try again."
+    "submitFailed": "Sending failed, please try again.",
+    "atLeastOneRoom": "Add at least one treatment room."
   },
   "upload": {
     "choose": "Choose a file",
@@ -178,7 +179,7 @@
     "addClosure": "Add a closure"
   },
   "rooms": {
-    "empty": "No room yet.",
+    "empty": "No room yet: add at least one.",
     "name": "Room name",
     "namePlaceholder": "Cabin {{n}}",
     "capacity": "Guests",
@@ -192,7 +193,8 @@
       "Sauna": "Sauna",
       "Body Wrap": "Body wrap",
       "Multi-purpose": "Multi-purpose"
-    }
+    },
+    "count": "{{count}} room(s)"
   },
   "amenities": {
     "intro": "Turn on the facilities your guests can book.",
@@ -312,7 +314,8 @@
     "submitIntro": "Once sent, your answers can no longer be edited. Our team reviews them before the go-live.",
     "submit": "Send",
     "confirmTitle": "Send your answers?",
-    "confirmText": "You will no longer be able to edit them. If something is wrong, contact your account manager."
+    "confirmText": "You will no longer be able to edit them. If something is wrong, contact your account manager.",
+    "missingRooms": "at least one treatment room (Treatment rooms step)"
   },
   "optional": "optional",
   "optionalField": "(optional)",

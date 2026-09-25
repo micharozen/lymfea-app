@@ -20,11 +20,14 @@ export function RoomsStep({ state, formId, onSave }: StepProps) {
   const form = useForm<Values>({
     resolver: zodResolver(roomsSchema),
     defaultValues: {
-      treatment_rooms: rooms.map((r) => ({
-        name: str(r.name),
-        capabilities: (r.capabilities as Capability[]) ?? [],
-        capacity: typeof r.capacity === "number" ? r.capacity : 1,
-      })),
+      // Start with one row ready to fill: a venue always has at least one room.
+      treatment_rooms: rooms.length
+        ? rooms.map((r) => ({
+            name: str(r.name),
+            capabilities: (r.capabilities as Capability[]) ?? [],
+            capacity: typeof r.capacity === "number" ? r.capacity : 1,
+          }))
+        : [{ name: "", capabilities: ["Massage"], capacity: 1 }],
     },
   });
   const { register, control, handleSubmit, formState } = form;
@@ -33,8 +36,15 @@ export function RoomsStep({ state, formId, onSave }: StepProps) {
 
   return (
     <form id={formId} onSubmit={handleSubmit((v) => onSave(v))} className="space-y-3">
+      <p className="text-sm text-muted-foreground">{t("rooms.count", { count: fields.length })}</p>
       {fields.length === 0 && (
         <p className="text-sm text-muted-foreground rounded-lg border border-dashed p-4 text-center">{t("rooms.empty")}</p>
+      )}
+      {formState.errors.treatment_rooms?.root?.message && (
+        <p className="text-xs text-destructive">{t(formState.errors.treatment_rooms.root.message)}</p>
+      )}
+      {formState.errors.treatment_rooms?.message && (
+        <p className="text-xs text-destructive">{t(formState.errors.treatment_rooms.message)}</p>
       )}
       {fields.map((f, i) => {
         const e = formState.errors.treatment_rooms?.[i];

@@ -74,7 +74,8 @@
     "color": "Couleur au format #RRGGBB",
     "locked": "Ce formulaire a déjà été envoyé et ne peut plus être modifié.",
     "saveFailed": "L'enregistrement a échoué, réessayez.",
-    "submitFailed": "L'envoi a échoué, réessayez."
+    "submitFailed": "L'envoi a échoué, réessayez.",
+    "atLeastOneRoom": "Ajoutez au moins une salle de soin."
   },
   "upload": {
     "choose": "Choisir un fichier",
@@ -178,7 +179,7 @@
     "addClosure": "Ajouter une fermeture"
   },
   "rooms": {
-    "empty": "Aucune salle pour l'instant.",
+    "empty": "Aucune salle pour l'instant : ajoutez-en au moins une.",
     "name": "Nom de la salle",
     "namePlaceholder": "Cabine {{n}}",
     "capacity": "Personnes",
@@ -192,7 +193,8 @@
       "Sauna": "Sauna",
       "Body Wrap": "Enveloppement",
       "Multi-purpose": "Polyvalente"
-    }
+    },
+    "count": "{{count}} salle(s)"
   },
   "amenities": {
     "intro": "Activez les espaces que vos clients pourront réserver.",
@@ -312,7 +314,8 @@
     "submitIntro": "Une fois envoyées, vos réponses ne sont plus modifiables. Notre équipe les vérifie avant la mise en ligne.",
     "submit": "Envoyer",
     "confirmTitle": "Envoyer vos réponses ?",
-    "confirmText": "Vous ne pourrez plus les modifier. En cas d'erreur, contactez votre interlocuteur."
+    "confirmText": "Vous ne pourrez plus les modifier. En cas d'erreur, contactez votre interlocuteur.",
+    "missingRooms": "au moins une salle de soin (étape Salles de soin)"
   },
   "optional": "facultatif",
   "optionalField": "(facultatif)",

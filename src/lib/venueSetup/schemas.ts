@@ -118,6 +118,9 @@ export const roomsSchema = z.object({
       capacity: z.number({ invalid_type_error: "errors.required" }).int().min(1, "errors.range").max(10, "errors.range"),
     }),
   ),
+}).refine((v) => v.treatment_rooms.length > 0, {
+  message: "errors.atLeastOneRoom",
+  path: ["treatment_rooms"],
 });
 
 export const amenitiesSchema = z.object({

@@ -93,7 +93,10 @@ export default function VenueSetup() {
     queryKey: venueSetupKeys.state(token),
     queryFn: () => venueSetupApi.get(token),
     retry: false,
-    staleTime: Infinity,
+    // The link is shared: a colleague may have saved steps in another tab.
+    // Reload on focus so a form never opens on stale answers and overwrites them.
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
 
   // The document does not scroll here (body is the scroll container), so

@@ -23,6 +23,9 @@ function missingRequired(state: SetupState): string[] {
   if (!hotel.venue_type) missing.push("venue.type");
   if (!hotel.address) missing.push("fields.address");
   if (!hotel.city) missing.push("fields.city");
+  if (!Array.isArray(state.data.treatment_rooms) || state.data.treatment_rooms.length === 0) {
+    missing.push("summary.missingRooms");
+  }
   return missing;
 }
 
