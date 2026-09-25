@@ -258,15 +258,10 @@
     "venueEntity": "Entité de facturation du lieu"
   },
   "payment": {
-    "intro": "Nous connecterons votre compte de paiement avec vous après la mise en ligne.",
-    "provider": "Prestataire de paiement",
-    "none": "Aucun pour l'instant",
-    "hasAccount": "Nous avons déjà un compte",
-    "ownerEmail": "Email du titulaire du compte",
-    "ownerEmailHint": "Nous lui enverrons l'invitation de connexion.",
-    "contact": "Contact technique ou financier",
-    "contactHint": "Nom, email, téléphone.",
-    "noSecrets": "Ne saisissez jamais de mot de passe, clé API ou identifiant technique ici : nous organiserons ces connexions avec vous de façon sécurisée."
+    "noSecrets": "Ne saisissez jamais de mot de passe, clé API ou identifiant technique ici : nous organiserons ces connexions avec vous de façon sécurisée.",
+    "laterTitle": "Rien à faire ici pour l'instant 🙂",
+    "laterText": "Le paiement en ligne se connecte depuis votre espace admin, une fois votre lieu créé : en 2 clics, avec votre compte Stripe.",
+    "docLink": "Voir la documentation Stripe Connect"
   },
   "pms": {
     "type": "Logiciel hôtelier utilisé",

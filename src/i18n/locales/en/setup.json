@@ -258,15 +258,10 @@
     "venueEntity": "Venue billing entity"
   },
   "payment": {
-    "intro": "We will connect your payment account with you after the go-live.",
-    "provider": "Payment provider",
-    "none": "None yet",
-    "hasAccount": "We already have an account",
-    "ownerEmail": "Account owner email",
-    "ownerEmailHint": "We will send them the connection invitation.",
-    "contact": "Technical or finance contact",
-    "contactHint": "Name, email, phone.",
-    "noSecrets": "Never enter passwords, API keys or technical credentials here: we will set up these connections with you securely."
+    "noSecrets": "Never enter passwords, API keys or technical credentials here: we will set up these connections with you securely.",
+    "laterTitle": "Nothing to do here for now 🙂",
+    "laterText": "Online payment is connected from your admin space once your venue is created: in 2 clicks, with your Stripe account.",
+    "docLink": "Read the Stripe Connect guide"
   },
   "pms": {
     "type": "Hotel software in use",

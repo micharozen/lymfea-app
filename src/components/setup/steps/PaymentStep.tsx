@@ -1,79 +1,39 @@
-import { Controller, useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslation } from "react-i18next";
-import type { z } from "zod";
-import { Input } from "@/components/ui/input";
-import { paymentSchema } from "@/lib/venueSetup/schemas";
-import { ChoiceCards, Field, SwitchRow } from "../SetupFields";
-import { boolOr, sectionObject, str, type StepProps } from "../types";
+import { CreditCard, ExternalLink } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import type { StepProps } from "../types";
 
-type Values = z.infer<typeof paymentSchema>;
+const STRIPE_CONNECT_DOC_URL = "https://saoma.notion.site/stripe-connect?source=copy_link";
 
-export function PaymentStep({ state, formId, onSave }: StepProps) {
+/**
+ * Informational step: Stripe is connected by OAuth from the admin once the
+ * venue exists (fixed redirect URL, authenticated flow), so nothing is asked
+ * here. Submitting just marks the step as seen.
+ */
+export function PaymentStep({ formId, onSave }: StepProps) {
   const { t } = useTranslation("setup");
-  const p = sectionObject(state, "payment");
-
-  const form = useForm<Values>({
-    resolver: zodResolver(paymentSchema),
-    defaultValues: {
-      payment: {
-        provider: (p.provider as Values["payment"]["provider"]) ?? "stripe",
-        has_account: boolOr(p.has_account, false),
-        account_owner_email: str(p.account_owner_email),
-        contact: str(p.contact),
-      },
-    },
-  });
-  const { register, control, handleSubmit, watch, formState } = form;
-  const provider = watch("payment.provider");
 
   return (
-    <form id={formId} onSubmit={handleSubmit((v) => onSave(v))} className="space-y-5">
-      <p className="text-sm text-muted-foreground">{t("payment.intro")}</p>
-
-      <Field label={t("payment.provider")}>
-        <Controller
-          control={control}
-          name="payment.provider"
-          render={({ field }) => (
-            <ChoiceCards
-              value={field.value}
-              onChange={field.onChange}
-              columns={3}
-              options={[
-                { value: "stripe", label: "Stripe" },
-                { value: "adyen", label: "Adyen" },
-                { value: "none", label: t("payment.none") },
-              ]}
-            />
-          )}
-        />
-      </Field>
-
-      {provider !== "none" && (
-        <Controller
-          control={control}
-          name="payment.has_account"
-          render={({ field }) => (
-            <SwitchRow label={t("payment.hasAccount")} checked={field.value} onChange={field.onChange} />
-          )}
-        />
-      )}
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field
-          label={t("payment.ownerEmail")}
-          hint={t("payment.ownerEmailHint")}
-          error={formState.errors.payment?.account_owner_email?.message}
-        >
-          <Input type="email" {...register("payment.account_owner_email")} />
-        </Field>
-        <Field label={t("payment.contact")} hint={t("payment.contactHint")}>
-          <Input {...register("payment.contact")} />
-        </Field>
+    <form
+      id={formId}
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSave({});
+      }}
+    >
+      <div className="rounded-xl border bg-card p-5 flex gap-4">
+        <CreditCard className="h-6 w-6 text-primary flex-shrink-0" />
+        <div className="space-y-3">
+          <p className="text-sm">{t("payment.laterTitle")}</p>
+          <p className="text-sm text-muted-foreground">{t("payment.laterText")}</p>
+          <Button asChild variant="outline" size="sm">
+            <a href={STRIPE_CONNECT_DOC_URL} target="_blank" rel="noreferrer">
+              {t("payment.docLink")}
+              <ExternalLink className="h-3.5 w-3.5 ml-2" />
+            </a>
+          </Button>
+        </div>
       </div>
-
-      <p className="text-xs text-muted-foreground rounded-lg bg-muted/50 p-3">{t("payment.noSecrets")}</p>
     </form>
   );
 }

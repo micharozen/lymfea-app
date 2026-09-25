@@ -10,7 +10,6 @@ import {
   AMENITY_TYPES,
   CLIENT_PAYMENT_MODES,
   INVOICE_CLIENTS,
-  PAYMENT_PROVIDERS,
   PMS_TYPES,
   ROOM_CAPABILITY_VALUES,
   SCHEDULE_TYPES,
@@ -192,15 +191,6 @@ export const financeSchema = z
     (v) => (v.hotel.hotel_commission ?? 0) + (v.hotel.therapist_commission ?? 0) <= 100,
     { message: "errors.commissionSum", path: ["hotel", "therapist_commission"] },
   );
-
-export const paymentSchema = z.object({
-  payment: z.object({
-    provider: z.enum(PAYMENT_PROVIDERS),
-    has_account: z.boolean(),
-    account_owner_email: optEmail,
-    contact: optText,
-  }),
-});
 
 export const pmsSchema = z.object({
   hotel: z.object({
