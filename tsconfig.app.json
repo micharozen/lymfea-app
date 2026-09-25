@@ -27,5 +27,5 @@
       "@shared/*": ["./supabase/functions/_shared/*"]
     }
   },
-  "include": ["src", "supabase/functions/_shared/db"]
+  "include": ["src", "supabase/functions/_shared/db", "supabase/functions/_shared/venueSetup"]
 }

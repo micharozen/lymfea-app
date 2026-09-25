@@ -4253,6 +4253,69 @@ export type Database = {
           },
         ]
       }
+      venue_setup_submissions: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          data: Json
+          expires_at: string
+          hotel_id: string | null
+          id: string
+          imported_at: string | null
+          label: string
+          organization_id: string
+          status: string
+          submitted_at: string | null
+          token: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          data?: Json
+          expires_at?: string
+          hotel_id?: string | null
+          id?: string
+          imported_at?: string | null
+          label: string
+          organization_id: string
+          status?: string
+          submitted_at?: string | null
+          token?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          data?: Json
+          expires_at?: string
+          hotel_id?: string | null
+          id?: string
+          imported_at?: string | null
+          label?: string
+          organization_id?: string
+          status?: string
+          submitted_at?: string | null
+          token?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "venue_setup_submissions_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "venue_setup_submissions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       voucher_resellers: {
         Row: {
           code_pattern: string | null
@@ -5279,6 +5342,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      import_venue_setup_submission: {
+        Args: { p_file_urls?: Json; p_submission_id: string }
+        Returns: Json
       }
       is_booking_participant: {
         Args: { _booking_id: string; _therapist_id: string }

@@ -169,7 +169,10 @@ export default function Organizations() {
                 className="pl-10"
               />
             </div>
-            <Button className="ml-auto" onClick={openAdd}>
+            <Button className="ml-auto" variant="outline" onClick={() => navigate("/admin/onboarding-requests")}>
+              {t("venueSetup.pageTitle")}
+            </Button>
+            <Button onClick={openAdd}>
               {t("organizationsPage.new")}
             </Button>
           </div>

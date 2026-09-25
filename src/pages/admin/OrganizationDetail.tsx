@@ -29,6 +29,7 @@ import {
 import { EditOrganizationDialog } from "@/components/admin/EditOrganizationDialog";
 import { AddAdminDialog } from "@/components/admin/AddAdminDialog";
 import { useDialogState } from "@/hooks/useDialogState";
+import { VenueSetupSubmissionsPanel } from "@/components/admin/venue-setup/VenueSetupSubmissionsPanel";
 
 interface Organization {
   id: string;
@@ -245,6 +246,16 @@ export default function OrganizationDetail() {
             )}
           </div>
         </section>
+
+        {isSuperAdmin && org && (
+          <section>
+            <div className="mb-3">
+              <h2 className="text-sm font-medium text-foreground">{t('venueSetup.sectionTitle')}</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">{t('venueSetup.sectionDesc')}</p>
+            </div>
+            <VenueSetupSubmissionsPanel organizationId={org.id} />
+          </section>
+        )}
 
         <section>
           <div className="flex items-center justify-between mb-3">
