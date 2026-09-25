@@ -319,5 +319,38 @@
     "submit": "Envoyer",
     "confirmTitle": "Envoyer vos réponses ?",
     "confirmText": "Vous ne pourrez plus les modifier. En cas d'erreur, contactez votre interlocuteur."
+  },
+  "optional": "facultatif",
+  "optionalField": "(facultatif)",
+  "requiredLegend": "Champ obligatoire. Tout le reste est facultatif : complétez ce que vous savez, vous pourrez revenir plus tard.",
+  "header": {
+    "contact": "Nous contacter",
+    "soundOn": "Activer le son",
+    "soundOff": "Couper le son",
+    "progress": "{{percent}} % complété"
+  },
+  "welcome": {
+    "kicker": "Bienvenue 👋",
+    "title": "Configurons {{name}} ensemble",
+    "intro": "Ce formulaire nous permet de préparer votre espace de réservation en ligne : informations de la société, horaires, salles de soin, règles de réservation, équipe et identité visuelle. Vous remplissez, nous vérifions, puis nous mettons votre lieu en ligne.",
+    "timeTitle": "Environ 15 minutes",
+    "timeText": "Seuls quelques champs sont obligatoires, ils sont signalés par un astérisque.",
+    "saveTitle": "Enregistré à chaque étape",
+    "saveText": "Vous pouvez vous arrêter et reprendre plus tard avec ce même lien.",
+    "shareTitle": "À plusieurs",
+    "shareText": "Transmettez le lien à un collègue (compta, informatique) pour qu'il complète sa partie.",
+    "prepareTitle": "À avoir sous la main",
+    "prepare": {
+      "siren": "Le numéro SIREN de la société (le reste se remplit tout seul)",
+      "visuals": "Votre logo et une belle photo du lieu",
+      "hours": "Vos horaires d'ouverture et fermetures prévues",
+      "rooms": "La liste de vos salles de soin",
+      "team": "Les coordonnées des personnes qui géreront les réservations"
+    },
+    "stepsTitle": "Les étapes",
+    "helpTitle": "Une question en cours de route ?",
+    "helpText": "Notre équipe vous répond rapidement par email.",
+    "start": "Commencer",
+    "resume": "Reprendre là où j'en étais"
   }
 }

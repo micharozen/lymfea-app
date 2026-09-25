@@ -6,6 +6,7 @@ import { ArrowLeft, ArrowRight, Check, CheckCircle2, Loader2, Lock } from "lucid
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { SelectField } from "@/components/ui/select-field";
+import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,7 +18,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
-import brand from "@/config/brand.json";
 import { setupErrorCode, venueSetupApi, venueSetupKeys, type SetupState } from "@/lib/venueSetup/api";
 import { STEP_IDS, type StepId } from "@shared/venueSetup/spec";
 import type { StepProps } from "@/components/setup/types";
@@ -33,8 +33,14 @@ import { PmsStep } from "@/components/setup/steps/PmsStep";
 import { TeamStep } from "@/components/setup/steps/TeamStep";
 import { BrandingStep } from "@/components/setup/steps/BrandingStep";
 import { SummaryStep } from "@/components/setup/steps/SummaryStep";
+import { ContactButton, SetupHeader } from "@/components/setup/SetupHeader";
+import { WelcomeScreen } from "@/components/setup/WelcomeScreen";
+import { playSavedChime } from "@/lib/venueSetup/sound";
 
-type PageStep = StepId | "summary";
+type PageStep = StepId | "summary" | "welcome";
+
+/** Steps a venue can skip entirely: flagged "optional" in the navigation. */
+const OPTIONAL_STEPS: ReadonlySet<StepId> = new Set(["amenities", "payment", "pms", "team", "branding"]);
 
 const STEP_COMPONENTS: Record<StepId, (props: StepProps) => JSX.Element> = {
   company: CompanyStep,
@@ -58,30 +64,19 @@ function visibleSteps(state: SetupState): StepId[] {
   return STEP_IDS.filter((s) => s !== "pms" || venueType !== "spa");
 }
 
-function LanguageSwitch() {
-  const { i18n } = useTranslation();
-  const lang = i18n.language?.startsWith("fr") ? "fr" : "en";
+function CenteredMessage({ icon, title, text, label }: { icon: JSX.Element; title: string; text: string; label?: string }) {
   return (
-    <SelectField
-      className="w-[90px]"
-      searchable={false}
-      value={lang}
-      onChange={(v) => void i18n.changeLanguage(v)}
-      options={[
-        { value: "fr", label: "FR" },
-        { value: "en", label: "EN" },
-      ]}
-    />
-  );
-}
-
-function CenteredMessage({ icon, title, text }: { icon: JSX.Element; title: string; text: string }) {
-  return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-6">
-      <div className="max-w-md text-center space-y-3">
-        <div className="flex justify-center">{icon}</div>
-        <h1 className="text-xl font-normal">{title}</h1>
-        <p className="text-sm text-muted-foreground">{text}</p>
+    <div className="min-h-screen bg-background flex flex-col">
+      <SetupHeader label={label ?? ""} />
+      <div className="flex-1 flex items-center justify-center p-6">
+        <div className="max-w-md text-center space-y-4 animate-in fade-in zoom-in-95 duration-500">
+          <div className="flex justify-center">{icon}</div>
+          <h1 className="text-2xl font-normal">{title}</h1>
+          <p className="text-sm text-muted-foreground">{text}</p>
+          <div className="pt-2">
+            <ContactButton label={label} />
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -103,7 +98,7 @@ export default function VenueSetup() {
 
   // The document does not scroll here (body is the scroll container), so
   // bring the header back into view instead of window.scrollTo.
-  const topRef = useRef<HTMLElement>(null);
+  const topRef = useRef<HTMLDivElement>(null);
   const goTo = (step: PageStep) => {
     setParams({ step }, { replace: false });
     topRef.current?.scrollIntoView({ block: "start" });
@@ -117,6 +112,7 @@ export default function VenueSetup() {
       if (current) {
         queryClient.setQueryData<SetupState>(venueSetupKeys.state(token), { ...current, data: res.data });
       }
+      playSavedChime();
       toast.success(t("saved"));
       const steps: PageStep[] = [...visibleSteps({ ...(current as SetupState), data: res.data }), "summary"];
       goTo(steps[steps.indexOf(step) + 1] ?? "summary");
@@ -157,9 +153,10 @@ export default function VenueSetup() {
   if (state.status !== "draft") {
     return (
       <CenteredMessage
-        icon={<CheckCircle2 className="h-8 w-8 text-green-600" />}
+        icon={<CheckCircle2 className="h-12 w-12 text-green-600 animate-in zoom-in-50 spin-in-12 duration-700" />}
         title={t("submitted.title")}
         text={t("submitted.text", { name: state.label })}
+        label={state.label}
       />
     );
   }
@@ -168,28 +165,40 @@ export default function VenueSetup() {
   const done = new Set(state.data._completed_steps ?? []);
   const requested = params.get("step") as PageStep | null;
   const current: PageStep =
-    requested && (requested === "summary" || steps.includes(requested as StepId))
+    requested && (requested === "summary" || requested === "welcome" || steps.includes(requested as StepId))
       ? requested
-      : steps.find((s) => !done.has(s)) ?? "summary";
-  const allPages: PageStep[] = [...steps, "summary"];
-  const index = allPages.indexOf(current);
-  const StepComponent = current === "summary" ? null : STEP_COMPONENTS[current];
+      : done.size === 0
+        ? "welcome"
+        : steps.find((s) => !done.has(s)) ?? "summary";
+  const progress = Math.round((steps.filter((s) => done.has(s)).length / steps.length) * 100);
+
+  if (current === "welcome") {
+    return (
+      <div className="min-h-screen bg-background">
+        <SetupHeader label={state.label} topRef={topRef} />
+        <WelcomeScreen
+          label={state.label}
+          steps={steps}
+          resuming={done.size > 0}
+          onStart={() => goTo(steps.find((s) => !done.has(s)) ?? "summary")}
+        />
+      </div>
+    );
+  }
+
+  // Past the welcome screen (narrowing is lost without strict mode).
+  const page = current as StepId | "summary";
+  const allPages: (StepId | "summary")[] = [...steps, "summary"];
+  const index = allPages.indexOf(page);
+  const StepComponent = page === "summary" ? null : STEP_COMPONENTS[page];
 
   return (
     <div className="min-h-screen bg-background">
-      <header ref={topRef} className="border-b">
-        <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-xs text-muted-foreground">{brand.name}</p>
-            <p className="text-sm truncate">{t("title", { name: state.label })}</p>
-          </div>
-          <LanguageSwitch />
-        </div>
-      </header>
+      <SetupHeader label={state.label} progress={progress} topRef={topRef} />
 
-      <div className="max-w-5xl mx-auto px-4 py-6 md:grid md:grid-cols-[220px_1fr] md:gap-8">
+      <div className="max-w-5xl mx-auto px-4 py-6 md:grid md:grid-cols-[240px_1fr] md:gap-8">
         <nav className="hidden md:block">
-          <ol className="space-y-0.5 sticky top-6">
+          <ol className="space-y-0.5 sticky top-28">
             {allPages.map((s, i) => (
               <li key={s}>
                 <button
@@ -208,7 +217,10 @@ export default function VenueSetup() {
                   >
                     {s !== "summary" && done.has(s) ? <Check className="h-3 w-3" /> : i + 1}
                   </span>
-                  {t(`steps.${s}`)}
+                  <span className="flex-1">{t(`steps.${s}`)}</span>
+                  {s !== "summary" && OPTIONAL_STEPS.has(s) && (
+                    <span className="text-[10px] text-muted-foreground/80">{t("optional")}</span>
+                  )}
                 </button>
               </li>
             ))}
@@ -229,17 +241,28 @@ export default function VenueSetup() {
             <p className="text-xs text-muted-foreground">
               {t("stepOf", { n: index + 1, total: allPages.length })}
             </p>
-            <h1 className="text-xl font-normal mt-0.5">{t(`steps.${current}`)}</h1>
+            <h1 className="text-xl font-normal mt-0.5 flex items-center gap-2">
+              {t(`steps.${current}`)}
+              {page !== "summary" && OPTIONAL_STEPS.has(page) && (
+                <Badge variant="outline" className="font-normal">{t("optional")}</Badge>
+              )}
+            </h1>
             {current !== "summary" && <p className="text-sm text-muted-foreground mt-1">{t(`stepIntros.${current}`)}</p>}
+            {current !== "summary" && (
+              <p className="text-xs text-muted-foreground mt-2">
+                <span className="text-destructive">*</span> {t("requiredLegend")}
+              </p>
+            )}
           </div>
 
+          <div key={current} className="animate-in fade-in slide-in-from-bottom-2 duration-300">
           {StepComponent && current !== "summary" ? (
             <StepComponent
               key={current}
               token={token}
               state={state}
               formId={FORM_ID}
-              onSave={(sections) => saveMutation.mutate({ step: current, sections })}
+              onSave={(sections) => saveMutation.mutate({ step: page as StepId, sections })}
             />
           ) : (
             <SummaryStep
@@ -250,14 +273,15 @@ export default function VenueSetup() {
               onSubmit={() => setConfirmOpen(true)}
             />
           )}
+          </div>
 
           <div className="mt-8 pt-4 border-t flex items-center justify-between gap-3">
-            <Button type="button" variant="ghost" disabled={index === 0} onClick={() => goTo(allPages[index - 1])}>
+            <Button type="button" variant="ghost" onClick={() => goTo(index === 0 ? "welcome" : allPages[index - 1])}>
               <ArrowLeft className="h-4 w-4 mr-2" />
               {t("nav.previous")}
             </Button>
             {current !== "summary" && (
-              <Button type="submit" form={FORM_ID} disabled={saveMutation.isPending}>
+              <Button type="submit" form={FORM_ID} disabled={saveMutation.isPending} className="transition-transform active:scale-95">
                 {saveMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                 {t("nav.saveAndContinue")}
                 <ArrowRight className="h-4 w-4 ml-2" />

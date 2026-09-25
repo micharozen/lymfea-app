@@ -319,5 +319,38 @@
     "submit": "Send",
     "confirmTitle": "Send your answers?",
     "confirmText": "You will no longer be able to edit them. If something is wrong, contact your account manager."
+  },
+  "optional": "optional",
+  "optionalField": "(optional)",
+  "requiredLegend": "Required field. Everything else is optional: fill in what you know, you can come back later.",
+  "header": {
+    "contact": "Contact us",
+    "soundOn": "Turn sound on",
+    "soundOff": "Mute sound",
+    "progress": "{{percent}}% complete"
+  },
+  "welcome": {
+    "kicker": "Welcome 👋",
+    "title": "Let's set up {{name}} together",
+    "intro": "This form lets us prepare your online booking space: company details, opening hours, treatment rooms, booking rules, team and visual identity. You fill it in, we review it, then we put your venue online.",
+    "timeTitle": "About 15 minutes",
+    "timeText": "Only a few fields are required, they are marked with an asterisk.",
+    "saveTitle": "Saved at every step",
+    "saveText": "You can stop and come back later with this same link.",
+    "shareTitle": "As a team",
+    "shareText": "Forward the link to a colleague (finance, IT) so they can fill in their part.",
+    "prepareTitle": "Have these at hand",
+    "prepare": {
+      "siren": "The company's SIREN number (the rest fills itself in)",
+      "visuals": "Your logo and a nice photo of the venue",
+      "hours": "Your opening hours and planned closures",
+      "rooms": "The list of your treatment rooms",
+      "team": "Contact details of the people who will manage bookings"
+    },
+    "stepsTitle": "The steps",
+    "helpTitle": "A question along the way?",
+    "helpText": "Our team answers quickly by email.",
+    "start": "Get started",
+    "resume": "Pick up where I left off"
   }
 }

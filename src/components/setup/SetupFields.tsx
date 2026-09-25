@@ -37,6 +37,9 @@ export function Field({ label, hint, error, required, htmlFor, className, childr
       <Label htmlFor={controlId} className="text-sm font-normal">
         {label}
         {required && <span className="text-destructive ml-0.5">*</span>}
+        {!required && isTextControl && (
+          <span className="text-muted-foreground/70 text-xs ml-1.5">{t("optionalField")}</span>
+        )}
       </Label>
       {control}
       {hint && !error && <p className="text-xs text-muted-foreground">{hint}</p>}
