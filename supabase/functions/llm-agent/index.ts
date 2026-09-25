@@ -18,6 +18,7 @@ import { parseEmailWithLlm, type ParseEmailInput } from "./actions/parseEmail.ts
 import { loadTreatmentRefs } from "../_shared/treatmentRefs.ts";
 import { resolveRequestedDate } from "../_shared/requestedDate.ts";
 import { generateInquiryReply } from "./actions/generateInquiryReply.ts";
+import { extractVenueFromWebsite } from "./actions/extractVenueFromWebsite.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -116,6 +117,21 @@ serve(async (req) => {
         if (error || !result) {
           return jsonResponse({ error: error ?? "Failed to generate reply" }, 500);
         }
+        return jsonResponse(result);
+      }
+
+      // Onboarding wizard prefill: read the venue's public website and
+      // extract answers. Called by venue-setup with the service role only.
+      case "extract-venue-website": {
+        const auth = req.headers.get("Authorization") ?? "";
+        const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+        if (!serviceKey || auth !== `Bearer ${serviceKey}`) {
+          return jsonResponse({ error: "forbidden" }, 403);
+        }
+        const url = typeof body.url === "string" ? body.url.trim() : "";
+        if (!url) return jsonResponse({ error: "Missing `url`" }, 400);
+        const { result, error } = await extractVenueFromWebsite(url);
+        if (error || !result) return jsonResponse({ error: error ?? "extraction_failed" }, 422);
         return jsonResponse(result);
       }
 

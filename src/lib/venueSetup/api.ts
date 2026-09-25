@@ -73,6 +73,10 @@ export const venueSetupApi = {
 
   submit: (token: string) => call<{ success: true }>(token, "submit"),
 
+  /** Reads the venue website with the AI and fills empty answers. */
+  prefillFromWebsite: (token: string, url: string) =>
+    call<{ success: true; filled: string[]; data: SetupData }>(token, "prefillFromWebsite", { url }),
+
   /** Uploads a file to the private bucket and returns its storage path. */
   async upload(token: string, kind: UploadKind, file: File): Promise<string> {
     const target = await call<{ path: string; token: string }>(token, "createUploadUrl", {

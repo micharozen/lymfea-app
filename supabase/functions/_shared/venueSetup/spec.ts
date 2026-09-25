@@ -399,9 +399,20 @@ function sanitizeSection(name: SectionName, raw: unknown): Result {
   return sanitizeObject(spec.fields, raw, name);
 }
 
+export interface PrefillInfo {
+  url: string;
+  at: string;
+  count: number;
+  /** "section.field" keys filled by the AI, shown as "to review" in the wizard. */
+  filled: string[];
+}
+
 export type SetupData = Partial<Record<SectionName, unknown>> & {
   _completed_steps?: StepId[];
+  _prefill?: PrefillInfo;
 };
+
+export const MAX_PREFILLS = 3;
 
 /**
  * Validates a step payload against the whitelist and merges it into the
@@ -456,4 +467,64 @@ export function collectFilePaths(data: SetupData): string[] {
 /** A path is only valid inside its own submission folder (`<submission_id>/…`). */
 export function isOwnFilePath(path: string, submissionId: string): boolean {
   return path.startsWith(`${submissionId}/`) && !path.includes("..") && path.split("/").length === 2;
+}
+
+export interface PrefillSuggestion {
+  organization?: Record<string, unknown>;
+  hotel?: Record<string, unknown>;
+  amenity_types?: string[];
+}
+
+const isEmpty = (v: unknown) => v === null || v === undefined || v === "";
+
+// Identifiers are often printed with spaces on websites ("830 247 862").
+const COMPACT_KEYS = new Set(["siren", "siret", "vat_number"]);
+
+/**
+ * Merges AI suggestions into the answers without ever overwriting what the
+ * venue typed: only empty fields are filled, each value goes through the same
+ * whitelist/sanitizer as a manual save, invalid values are silently dropped.
+ * Steps are not marked completed — the venue still reviews each one.
+ */
+export function mergePrefill(
+  current: SetupData,
+  suggestion: PrefillSuggestion,
+): { data: SetupData; filled: string[] } {
+  const next: SetupData = { ...current };
+  const filled: string[] = [];
+
+  for (const name of ["organization", "hotel"] as const) {
+    const spec = SECTIONS[name];
+    const proposed = suggestion[name];
+    if (!proposed || typeof proposed !== "object") continue;
+    const section = { ...((current[name] as Record<string, unknown> | undefined) ?? {}) };
+    for (const [key, raw] of Object.entries(proposed)) {
+      const field = (spec.fields as Record<string, FieldSpec>)[key];
+      if (!field || !isEmpty(section[key])) continue;
+      const value = COMPACT_KEYS.has(key) && typeof raw === "string" ? raw.replace(/[\s.]/g, "").toUpperCase() : raw;
+      if (key === "siren" && typeof value === "string" && !/^\d{9}$/.test(value)) continue;
+      if (key === "siret" && typeof value === "string" && !/^\d{14}$/.test(value)) continue;
+      const r = sanitizeField(field, value, `${name}.${key}`);
+      if (r.ok === false || r.value === null) continue;
+      section[key] = r.value;
+      filled.push(`${name}.${key}`);
+    }
+    // SIREN = first 9 digits of the SIRET: derive it when only the SIRET was found.
+    if (name === "organization" && isEmpty(section.siren) && typeof section.siret === "string" && /^\d{14}$/.test(section.siret)) {
+      section.siren = section.siret.slice(0, 9);
+      filled.push("organization.siren");
+    }
+    next[name] = section;
+  }
+
+  const hasAmenities = Array.isArray(current.venue_amenities) && current.venue_amenities.length > 0;
+  const types = (suggestion.amenity_types ?? []).filter((t): t is (typeof AMENITY_TYPES)[number] =>
+    (AMENITY_TYPES as readonly string[]).includes(t),
+  );
+  if (!hasAmenities && types.length > 0) {
+    next.venue_amenities = [...new Set(types)].map((type) => ({ type }));
+    filled.push("venue_amenities");
+  }
+
+  return { data: next, filled };
 }

@@ -346,5 +346,25 @@
     "helpText": "Our team answers quickly by email.",
     "start": "Get started",
     "resume": "Pick up where I left off"
+  },
+  "prefill": {
+    "title": "Save time: we read your website for you",
+    "text": "Enter the venue's website: our AI assistant pre-fills what it finds (presentation, address, opening hours, legal notice…). You then review each step.",
+    "urlLabel": "Venue website",
+    "button": "Pre-fill with AI",
+    "loading": {
+      "reading": "Reading your website…",
+      "legal": "Looking for legal notice and opening hours…",
+      "extracting": "Pre-filling the form…"
+    },
+    "done": "{{count}} field(s) pre-filled from {{url}}.",
+    "remaining": "{{count}} attempt(s) left.",
+    "success": "{{count}} field(s) pre-filled: please review them at each step.",
+    "banner": "Some fields of this step were pre-filled by AI from your website: please review them before continuing.",
+    "errors": {
+      "limit": "Maximum number of pre-fills reached for this link.",
+      "url": "Invalid website address.",
+      "failed": "Could not read this website. You can fill in the form manually."
+    }
   }
 }

@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, ArrowRight, Check, CheckCircle2, Loader2, Lock } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, CheckCircle2, Loader2, Lock, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { SelectField } from "@/components/ui/select-field";
@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import { setupErrorCode, venueSetupApi, venueSetupKeys, type SetupState } from "@/lib/venueSetup/api";
-import { STEP_IDS, type StepId } from "@shared/venueSetup/spec";
+import { STEP_IDS, STEPS, type StepId } from "@shared/venueSetup/spec";
 import type { StepProps } from "@/components/setup/types";
 import { CompanyStep } from "@/components/setup/steps/CompanyStep";
 import { VenueStep } from "@/components/setup/steps/VenueStep";
@@ -180,7 +180,16 @@ export default function VenueSetup() {
           label={state.label}
           steps={steps}
           resuming={done.size > 0}
+          token={token}
+          prefill={state.data._prefill}
+          websiteUrl={(state.data.hotel as { website_url?: string } | undefined)?.website_url}
           onStart={() => goTo(steps.find((s) => !done.has(s)) ?? "summary")}
+          onPrefilled={async (count) => {
+            await queryClient.invalidateQueries({ queryKey: venueSetupKeys.state(token) });
+            playSavedChime();
+            toast.success(t("prefill.success", { count }));
+            goTo(steps.find((s) => !done.has(s)) ?? "summary");
+          }}
         />
       </div>
     );
@@ -191,6 +200,12 @@ export default function VenueSetup() {
   const allPages: (StepId | "summary")[] = [...steps, "summary"];
   const index = allPages.indexOf(page);
   const StepComponent = page === "summary" ? null : STEP_COMPONENTS[page];
+  // AI-filled answers of this step's sections, to flag "please review".
+  const aiFilledHere =
+    page !== "summary" &&
+    (state.data._prefill?.filled ?? []).some((key) =>
+      (STEPS[page] as readonly string[]).includes(key.split(".")[0]),
+    );
 
   return (
     <div className="min-h-screen bg-background">
@@ -251,6 +266,12 @@ export default function VenueSetup() {
             {current !== "summary" && (
               <p className="text-xs text-muted-foreground mt-2">
                 <span className="text-destructive">*</span> {t("requiredLegend")}
+              </p>
+            )}
+            {aiFilledHere && (
+              <p className="mt-3 rounded-lg bg-primary/5 border border-primary/20 px-3 py-2 text-xs flex items-center gap-2 animate-in fade-in duration-500">
+                <Sparkles className="h-3.5 w-3.5 text-primary flex-shrink-0" />
+                {t("prefill.banner")}
               </p>
             )}
           </div>

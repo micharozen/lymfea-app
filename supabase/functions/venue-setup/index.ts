@@ -11,15 +11,21 @@
  *   saveStep         → whitelist-validated merge of one step into data
  *   createUploadUrl  → signed upload URL in the private venue-setup bucket
  *   lookupCompany    → SIREN lookup (recherche-entreprises)
+ *   prefillFromWebsite → reads the venue website through llm-agent and fills
+ *                      empty answers (max MAX_PREFILLS runs per link)
  *   submit           → draft → submitted, notifies super-admins
  */
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { lookupCompanyBySiren } from "../_shared/companyLookup.ts";
+import { safeFetch } from "../_shared/safeFetch.ts";
 import {
   applyStep,
   collectFilePaths,
   isOwnFilePath,
+  mergePrefill,
+  MAX_PREFILLS,
+  type PrefillSuggestion,
   MAX_DATA_BYTES,
   MAX_UPLOAD_BYTES,
   UPLOAD_KINDS,
@@ -180,6 +186,76 @@ async function handleCreateUploadUrl(
   return jsonResponse({ path, token: data.token, signedUrl: data.signedUrl });
 }
 
+const EXT_BY_TYPE: Record<string, string> = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp" };
+
+/** Downloads the site's og:image into the submission folder, as the cover. */
+async function importCover(sub: Submission, imageUrl: string): Promise<string | null> {
+  try {
+    const img = await safeFetch(imageUrl, MAX_UPLOAD_BYTES);
+    const allowed = UPLOAD_KINDS.cover as readonly string[];
+    if (!img.ok || !allowed.includes(img.contentType) || img.bytes.length === 0) return null;
+    const path = `${sub.id}/cover-${crypto.randomUUID()}.${EXT_BY_TYPE[img.contentType] ?? "jpg"}`;
+    const { error } = await supabaseAdmin.storage
+      .from(BUCKET)
+      .upload(path, img.bytes, { contentType: img.contentType, upsert: false });
+    return error ? null : path;
+  } catch {
+    return null;
+  }
+}
+
+async function handlePrefill(sub: Submission, body: Record<string, unknown>): Promise<Response> {
+  if (sub.status !== "draft") return jsonResponse({ error: "locked" }, 409);
+  const count = sub.data._prefill?.count ?? 0;
+  if (count >= MAX_PREFILLS) return jsonResponse({ error: "prefill_limit" }, 429);
+
+  let url = String(body.url ?? "").trim();
+  if (url && !/^https?:\/\//i.test(url)) url = `https://${url}`;
+  try {
+    new URL(url);
+  } catch {
+    return jsonResponse({ error: "invalid_url" }, 400);
+  }
+
+  const { data: extraction, error: llmError } = await supabaseAdmin.functions.invoke("llm-agent", {
+    body: { action: "extract-venue-website", url },
+  });
+  if (llmError || !extraction) {
+    const context = (llmError as { context?: Response } | null)?.context;
+    const detail = context ? await context.text().catch(() => "") : "";
+    console.error("[venue-setup] prefill llm error", llmError?.message, detail.slice(0, 300));
+    return jsonResponse({ error: "prefill_failed" }, 502);
+  }
+
+  const suggestion = extraction as PrefillSuggestion & { cover_image_url?: string | null };
+  const { data, filled } = mergePrefill(sub.data ?? {}, suggestion);
+
+  const hotel = (data.hotel ?? {}) as Record<string, unknown>;
+  if (!hotel.cover_image_path && suggestion.cover_image_url) {
+    const coverPath = await importCover(sub, suggestion.cover_image_url);
+    if (coverPath) {
+      data.hotel = { ...hotel, cover_image_path: coverPath };
+      filled.push("hotel.cover_image_path");
+    }
+  }
+
+  data._prefill = { url, at: new Date().toISOString(), count: count + 1, filled };
+
+  const { data: updated, error } = await supabaseAdmin
+    .from("venue_setup_submissions")
+    .update({ data })
+    .eq("id", sub.id)
+    .eq("status", "draft")
+    .select("id")
+    .maybeSingle();
+  if (error) {
+    console.error("[venue-setup] prefill save error", error);
+    return jsonResponse({ error: "save_failed" }, 500);
+  }
+  if (!updated) return jsonResponse({ error: "locked" }, 409);
+  return jsonResponse({ success: true, filled, data });
+}
+
 async function handleSubmit(sub: Submission): Promise<Response> {
   if (sub.status !== "draft") return jsonResponse({ error: "locked" }, 409);
 
@@ -246,6 +322,8 @@ serve(async (req: Request) => {
         if (!lookup.ok) return jsonResponse({ error: lookup.error }, lookup.status);
         return jsonResponse({ success: true, company: lookup.company });
       }
+      case "prefillFromWebsite":
+        return await handlePrefill(sub, body);
       case "submit":
         return await handleSubmit(sub);
       default:

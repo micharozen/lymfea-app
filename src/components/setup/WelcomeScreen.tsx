@@ -1,14 +1,19 @@
 import { useTranslation } from "react-i18next";
 import { ArrowRight, CheckCircle2, Clock, Save, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import type { StepId } from "@shared/venueSetup/spec";
+import type { PrefillInfo, StepId } from "@shared/venueSetup/spec";
 import { ContactButton } from "./SetupHeader";
+import { WebsitePrefill } from "./WebsitePrefill";
 
 interface WelcomeScreenProps {
   label: string;
   steps: StepId[];
   resuming: boolean;
+  token: string;
+  prefill?: PrefillInfo;
+  websiteUrl?: string;
   onStart: () => void;
+  onPrefilled: (filledCount: number) => void;
 }
 
 const PREPARE_KEYS = ["siren", "visuals", "hours", "rooms", "team"] as const;
@@ -19,7 +24,7 @@ const reveal = (i: number, className = "") => ({
   style: { animationDelay: `${i * 90}ms` },
 });
 
-export function WelcomeScreen({ label, steps, resuming, onStart }: WelcomeScreenProps) {
+export function WelcomeScreen({ label, steps, resuming, token, prefill, websiteUrl, onStart, onPrefilled }: WelcomeScreenProps) {
   const { t } = useTranslation("setup");
 
   const highlights = [
@@ -46,7 +51,11 @@ export function WelcomeScreen({ label, steps, resuming, onStart }: WelcomeScreen
         ))}
       </section>
 
-      <section {...reveal(2, "grid gap-6 md:grid-cols-2")}>
+      <section {...reveal(2)}>
+        <WebsitePrefill token={token} prefill={prefill} initialUrl={websiteUrl} onDone={onPrefilled} />
+      </section>
+
+      <section {...reveal(3, "grid gap-6 md:grid-cols-2")}>
         <div>
           <h2 className="text-sm font-medium">{t("welcome.prepareTitle")}</h2>
           <ul className="mt-3 space-y-2">
@@ -73,7 +82,7 @@ export function WelcomeScreen({ label, steps, resuming, onStart }: WelcomeScreen
         </div>
       </section>
 
-      <section {...reveal(3, "rounded-xl bg-muted/50 p-5 flex flex-col sm:flex-row sm:items-center gap-4 justify-between")}>
+      <section {...reveal(4, "rounded-xl bg-muted/50 p-5 flex flex-col sm:flex-row sm:items-center gap-4 justify-between")}>
         <div>
           <p className="text-sm">{t("welcome.helpTitle")}</p>
           <p className="text-xs text-muted-foreground mt-0.5">{t("welcome.helpText")}</p>
@@ -81,7 +90,7 @@ export function WelcomeScreen({ label, steps, resuming, onStart }: WelcomeScreen
         <ContactButton label={label} />
       </section>
 
-      <div {...reveal(4, "flex justify-end")}>
+      <div {...reveal(5, "flex justify-end")}>
         <Button size="lg" onClick={onStart}>
           {resuming ? t("welcome.resume") : t("welcome.start")}
           <ArrowRight className="h-4 w-4 ml-2" />
