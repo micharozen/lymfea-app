@@ -204,6 +204,48 @@ async function importCover(sub: Submission, imageUrl: string): Promise<string | 
   }
 }
 
+// Legal fields taken from the official register rather than the AI reading.
+const OFFICIAL_KEYS = [
+  "legal_name",
+  "legal_form",
+  "siren",
+  "siret",
+  "rcs",
+  "vat_number",
+  "legal_address",
+  "legal_postal_code",
+  "legal_city",
+  "legal_country",
+] as const;
+
+/**
+ * When the website's legal notice gives a SIREN/SIRET, completes and corrects
+ * the AI's company answers with the official register (recherche-entreprises).
+ * Only the suggestion is changed: mergePrefill still never overwrites what
+ * the venue typed.
+ */
+async function withOfficialCompany<T extends PrefillSuggestion>(suggestion: T): Promise<T> {
+  const org = suggestion.organization ?? {};
+  const digits = (v: unknown) => (typeof v === "string" ? v.replace(/\D/g, "") : "");
+  const siren = digits(org.siren).length === 9 ? digits(org.siren) : digits(org.siret).slice(0, 9);
+  if (siren.length !== 9) return suggestion;
+
+  const lookup = await lookupCompanyBySiren(siren).catch(() => null);
+  if (!lookup || lookup.ok === false) return suggestion;
+
+  const official = Object.fromEntries(
+    OFFICIAL_KEYS.map((k) => [k, lookup.company[k]]).filter(([, v]) => v !== null && v !== ""),
+  );
+  return {
+    ...suggestion,
+    organization: {
+      ...org,
+      ...official,
+      commercial_name: org.commercial_name ?? lookup.company.commercial_name,
+    },
+  };
+}
+
 async function handlePrefill(sub: Submission, body: Record<string, unknown>): Promise<Response> {
   if (sub.status !== "draft") return jsonResponse({ error: "locked" }, 409);
   const count = sub.data._prefill?.count ?? 0;
@@ -227,7 +269,9 @@ async function handlePrefill(sub: Submission, body: Record<string, unknown>): Pr
     return jsonResponse({ error: "prefill_failed" }, 502);
   }
 
-  const suggestion = extraction as PrefillSuggestion & { cover_image_url?: string | null };
+  const suggestion = await withOfficialCompany(
+    extraction as PrefillSuggestion & { cover_image_url?: string | null },
+  );
   const { data, filled } = mergePrefill(sub.data ?? {}, suggestion);
 
   const hotel = (data.hotel ?? {}) as Record<string, unknown>;
