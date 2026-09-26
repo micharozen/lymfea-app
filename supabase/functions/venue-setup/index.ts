@@ -7,7 +7,7 @@
  * (import_venue_setup_submission) triggered from the admin.
  *
  * Actions:
- *   get              → label, status, data, org prefill, signed URLs of files
+ *   get              → label, launch date, status, data, org prefill, signed URLs of files
  *   saveStep         → whitelist-validated merge of one step into data
  *   createUploadUrl  → signed upload URL in the private venue-setup bucket
  *   lookupCompany    → SIREN lookup (recherche-entreprises)
@@ -53,6 +53,7 @@ type Submission = {
   id: string;
   organization_id: string;
   label: string;
+  launch_date: string | null;
   data: SetupData;
   status: string;
   expires_at: string;
@@ -72,7 +73,7 @@ async function loadSubmission(token: unknown): Promise<
   }
   const { data, error } = await supabaseAdmin
     .from("venue_setup_submissions")
-    .select("id, organization_id, label, data, status, expires_at, submitted_at")
+    .select("id, organization_id, label, launch_date, data, status, expires_at, submitted_at")
     .eq("token", token)
     .maybeSingle();
 
@@ -112,6 +113,7 @@ async function handleGet(sub: Submission): Promise<Response> {
 
   return jsonResponse({
     label: sub.label,
+    launch_date: sub.launch_date,
     status: sub.status,
     submitted_at: sub.submitted_at,
     data: sub.data,

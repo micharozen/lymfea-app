@@ -4263,6 +4263,7 @@ export type Database = {
           id: string
           imported_at: string | null
           label: string
+          launch_date: string | null
           organization_id: string
           status: string
           submitted_at: string | null
@@ -4278,6 +4279,7 @@ export type Database = {
           id?: string
           imported_at?: string | null
           label: string
+          launch_date?: string | null
           organization_id: string
           status?: string
           submitted_at?: string | null
@@ -4293,6 +4295,7 @@ export type Database = {
           id?: string
           imported_at?: string | null
           label?: string
+          launch_date?: string | null
           organization_id?: string
           status?: string
           submitted_at?: string | null

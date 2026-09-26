@@ -15,6 +15,7 @@ export interface SubmissionRow {
   submitted_at: string | null;
   imported_at: string | null;
   expires_at: string;
+  launch_date: string | null;
   hotel_id: string | null;
   organizations: { name: string } | null;
 }
@@ -29,7 +30,7 @@ export interface ImportResult {
 }
 
 const LIST_COLUMNS =
-  "id, organization_id, label, status, token, created_at, submitted_at, imported_at, expires_at, hotel_id, organizations(name)";
+  "id, organization_id, label, status, token, created_at, submitted_at, imported_at, expires_at, launch_date, hotel_id, organizations(name)";
 
 export const venueSetupAdminKeys = {
   all: ["venue-setup-submissions"] as const,
@@ -76,10 +77,18 @@ export function useSubmissionData(id: string | null) {
 export function useCreateSubmission() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ organizationId, label }: { organizationId: string; label: string }) => {
+    mutationFn: async ({
+      organizationId,
+      label,
+      launchDate,
+    }: {
+      organizationId: string;
+      label: string;
+      launchDate: string;
+    }) => {
       const { data, error } = await supabase
         .from("venue_setup_submissions")
-        .insert({ organization_id: organizationId, label })
+        .insert({ organization_id: organizationId, label, launch_date: launchDate })
         .select("token")
         .single();
       if (error) throw error;

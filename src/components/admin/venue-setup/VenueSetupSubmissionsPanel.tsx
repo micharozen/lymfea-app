@@ -38,19 +38,26 @@ export function VenueSetupSubmissionsPanel({ organizationId }: VenueSetupSubmiss
   const createMutation = useCreateSubmission();
   const [createOpen, setCreateOpen] = useState(false);
   const [label, setLabel] = useState("");
+  const [launchDate, setLaunchDate] = useState("");
   const [selected, setSelected] = useState<SubmissionRow | null>(null);
 
   const formatDate = (iso: string | null) =>
     iso ? new Date(iso).toLocaleDateString(i18n.language?.startsWith("fr") ? "fr-FR" : "en-GB") : "—";
 
+  // launch_date is a calendar day (no time zone): parse it as local midnight.
+  const formatDay = (day: string | null) => (day ? formatDate(`${day}T00:00:00`) : "—");
+
+  const canCreate = !!label.trim() && !!launchDate;
+
   const create = () => {
-    if (!organizationId || !label.trim()) return;
+    if (!organizationId || !canCreate) return;
     createMutation.mutate(
-      { organizationId, label: label.trim() },
+      { organizationId, label: label.trim(), launchDate },
       {
         onSuccess: async (token) => {
           setCreateOpen(false);
           setLabel("");
+          setLaunchDate("");
           await copyLink(token, t("venueSetup.linkCreated"));
         },
         onError: () => toast.error(t("venueSetup.createFailed")),
@@ -91,6 +98,7 @@ export function VenueSetupSubmissionsPanel({ organizationId }: VenueSetupSubmiss
                   {row.submitted_at
                     ? t("venueSetup.submittedOn", { date: formatDate(row.submitted_at) })
                     : t("venueSetup.createdOn", { date: formatDate(row.created_at) })}
+                  {row.launch_date && ` · ${t("venueSetup.launchOn", { date: formatDay(row.launch_date) })}`}
                 </div>
               </div>
               <Badge variant={STATUS_VARIANT[row.status]}>{t(`venueSetup.status.${row.status}`)}</Badge>
@@ -130,11 +138,23 @@ export function VenueSetupSubmissionsPanel({ organizationId }: VenueSetupSubmiss
             />
             <p className="text-xs text-muted-foreground">{t("venueSetup.labelHint")}</p>
           </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="setup-launch-date" className="font-normal">
+              {t("venueSetup.launchDate")}
+            </Label>
+            <Input
+              id="setup-launch-date"
+              type="date"
+              value={launchDate}
+              onChange={(e) => setLaunchDate(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">{t("venueSetup.launchDateHint")}</p>
+          </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setCreateOpen(false)}>
               {t("common:buttons.cancel")}
             </Button>
-            <Button onClick={create} disabled={!label.trim() || createMutation.isPending}>
+            <Button onClick={create} disabled={!canCreate || createMutation.isPending}>
               {createMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               {t("venueSetup.createAndCopy")}
             </Button>

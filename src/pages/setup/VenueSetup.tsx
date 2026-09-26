@@ -181,6 +181,7 @@ export default function VenueSetup() {
         <SetupHeader label={state.label} topRef={topRef} />
         <WelcomeScreen
           label={state.label}
+          launchDate={state.launch_date}
           steps={steps}
           resuming={done.size > 0}
           token={token}

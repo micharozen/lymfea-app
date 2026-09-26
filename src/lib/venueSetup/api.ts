@@ -21,6 +21,8 @@ export interface SetupOrganizationPrefill {
 
 export interface SetupState {
   label: string;
+  /** Planned launch date (YYYY-MM-DD) set by the super-admin, if any. */
+  launch_date: string | null;
   status: "draft" | "submitted" | "imported" | "archived";
   submitted_at: string | null;
   data: SetupData;

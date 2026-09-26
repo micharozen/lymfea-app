@@ -330,6 +330,8 @@
     "kicker": "Welcome 👋",
     "title": "Let's set up {{name}} together",
     "intro": "This form lets us prepare your online booking space: company details, opening hours, treatment rooms, booking rules, team and visual identity. You fill it in, we review it, then we put your venue online.",
+    "launchTitle": "Planned launch",
+    "launchText": "Your online booking space will open on {{date}}.",
     "timeTitle": "About 15 minutes",
     "timeText": "Only a few fields are required, they are marked with an asterisk.",
     "saveTitle": "Saved at every step",

@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { ArrowRight, CheckCircle2, Clock, Save, Share2 } from "lucide-react";
+import { ArrowRight, CalendarDays, CheckCircle2, Clock, Save, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { PrefillInfo, StepId } from "@shared/venueSetup/spec";
 import { ContactButton } from "./SetupHeader";
@@ -7,6 +7,8 @@ import { WebsitePrefill } from "./WebsitePrefill";
 
 interface WelcomeScreenProps {
   label: string;
+  /** Planned launch date (YYYY-MM-DD), set by Eïa when creating the link. */
+  launchDate?: string | null;
   steps: StepId[];
   resuming: boolean;
   token: string;
@@ -24,8 +26,28 @@ const reveal = (i: number, className = "") => ({
   style: { animationDelay: `${i * 90}ms` },
 });
 
-export function WelcomeScreen({ label, steps, resuming, token, prefill, websiteUrl, onStart, onPrefilled }: WelcomeScreenProps) {
-  const { t } = useTranslation("setup");
+export function WelcomeScreen({
+  label,
+  launchDate,
+  steps,
+  resuming,
+  token,
+  prefill,
+  websiteUrl,
+  onStart,
+  onPrefilled,
+}: WelcomeScreenProps) {
+  const { t, i18n } = useTranslation("setup");
+
+  // A calendar day with no time zone: parse it as local midnight.
+  const launchLabel = launchDate
+    ? new Date(`${launchDate}T00:00:00`).toLocaleDateString(i18n.language?.startsWith("fr") ? "fr-FR" : "en-GB", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      })
+    : null;
 
   const highlights = [
     { icon: Clock, title: t("welcome.timeTitle"), text: t("welcome.timeText") },
@@ -39,6 +61,15 @@ export function WelcomeScreen({ label, steps, resuming, token, prefill, websiteU
         <p className="text-sm text-muted-foreground">{t("welcome.kicker")}</p>
         <h1 className="text-3xl md:text-4xl font-normal tracking-tight mt-2">{t("welcome.title", { name: label })}</h1>
         <p className="text-base text-muted-foreground mt-4 max-w-2xl">{t("welcome.intro")}</p>
+        {launchLabel && (
+          <div className="mt-6 inline-flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3">
+            <CalendarDays className="h-5 w-5 text-primary flex-shrink-0" />
+            <div>
+              <p className="text-sm">{t("welcome.launchTitle")}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{t("welcome.launchText", { date: launchLabel })}</p>
+            </div>
+          </div>
+        )}
       </section>
 
       <section {...reveal(1, "grid gap-3 sm:grid-cols-3")}>

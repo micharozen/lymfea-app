@@ -330,6 +330,8 @@
     "kicker": "Bienvenue 👋",
     "title": "Configurons {{name}} ensemble",
     "intro": "Ce formulaire nous permet de préparer votre espace de réservation en ligne : informations de la société, horaires, salles de soin, règles de réservation, équipe et identité visuelle. Vous remplissez, nous vérifions, puis nous mettons votre lieu en ligne.",
+    "launchTitle": "Lancement prévu",
+    "launchText": "Votre espace de réservation en ligne ouvrira le {{date}}.",
     "timeTitle": "Environ 15 minutes",
     "timeText": "Seuls quelques champs sont obligatoires, ils sont signalés par un astérisque.",
     "saveTitle": "Enregistré à chaque étape",
